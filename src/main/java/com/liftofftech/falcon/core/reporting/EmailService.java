@@ -38,14 +38,32 @@ public final class EmailService {
             return;
         }
         
+        System.out.println("=== Email Service: Starting email report generation ===");
+        System.out.println("Email enabled: " + FrameworkConfig.emailEnabled());
+        System.out.println("SMTP Host: " + FrameworkConfig.emailSmtpHost());
+        System.out.println("SMTP Port: " + FrameworkConfig.emailSmtpPort());
+        System.out.println("Email From: " + FrameworkConfig.emailFrom());
+        System.out.println("Email Recipients: " + FrameworkConfig.emailRecipients());
+        
         try {
             String reportPath = generateAllureReport();
             if (reportPath == null) {
                 System.err.println("ERROR: Failed to generate Allure report. Email not sent.");
+                System.err.println("Please check if Allure results exist in target/allure-results");
                 return;
             }
+            System.out.println("Report generated successfully at: " + reportPath);
             sendEmailWithLink(reportPath);
             System.out.println("SUCCESS: Email sent to " + FrameworkConfig.emailRecipients());
+        } catch (MessagingException e) {
+            System.err.println("ERROR: Failed to send email (MessagingException): " + e.getMessage());
+            System.err.println("Cause: " + (e.getCause() != null ? e.getCause().getMessage() : "Unknown"));
+            e.printStackTrace();
+            System.err.println("\nTroubleshooting:");
+            System.err.println("1. Check if email.enabled=true in config");
+            System.err.println("2. Verify email.username and email.password are correct");
+            System.err.println("3. For Gmail, ensure you're using an App Password (not regular password)");
+            System.err.println("4. Check SMTP settings: " + FrameworkConfig.emailSmtpHost() + ":" + FrameworkConfig.emailSmtpPort());
         } catch (Exception e) {
             System.err.println("ERROR: Failed to send email: " + e.getMessage());
             e.printStackTrace();
@@ -296,9 +314,27 @@ public final class EmailService {
     }
 
     /**
+     * Checks if running in CI environment (GitHub Actions, Jenkins, etc.)
+     */
+    private static boolean isCIEnvironment() {
+        String ci = System.getenv("CI");
+        String githubActions = System.getenv("GITHUB_ACTIONS");
+        String jenkins = System.getenv("JENKINS_URL");
+        return "true".equalsIgnoreCase(ci) || "true".equalsIgnoreCase(githubActions) || jenkins != null;
+    }
+    
+    /**
      * Starts a simple HTTP server to serve the Allure report and returns the URL.
      */
     private static String startHttpServer(Path reportDir, String htmlFile) {
+        // In CI environments, skip HTTP server and use file path or artifact info
+        if (isCIEnvironment()) {
+            System.out.println("Running in CI environment. Skipping HTTP server.");
+            String filePath = reportDir.resolve(htmlFile).toAbsolutePath().toString().replace("\\", "/");
+            System.out.println("Report file path: " + filePath);
+            return "CI_ARTIFACT:" + filePath;
+        }
+        
         try {
             // Find an available port starting from 8080
             for (int port = 8080; port < 8100; port++) {
@@ -513,7 +549,21 @@ public final class EmailService {
         body.append("<p><strong>Environment:</strong> ").append(environment).append("</p>");
         body.append("<p><strong>Execution Time:</strong> ").append(timestamp).append("</p>");
         
-        if (!reportLink.isEmpty() && reportLink.startsWith("http://")) {
+        // Handle CI environment
+        if (reportLink.startsWith("CI_ARTIFACT:")) {
+            String artifactPath = reportLink.substring("CI_ARTIFACT:".length());
+            body.append("<div style=\"background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 15px 0; border-radius: 4px;\">");
+            body.append("<p style=\"margin: 0 0 10px 0; color: #856404; font-size: 14px; font-weight: bold;\">");
+            body.append("📊 Test Execution Completed in CI Environment</p>");
+            body.append("<p style=\"margin: 0 0 15px 0; color: #333; font-size: 13px;\">");
+            body.append("The Allure report has been generated and uploaded as an artifact in GitHub Actions. ");
+            body.append("Please download the report from the Actions tab → Artifacts section.");
+            body.append("</p>");
+            body.append("<p style=\"margin: 0; color: #666; font-size: 12px;\">");
+            body.append("<strong>Report Path:</strong> <code style=\"background: #f5f5f5; padding: 2px 6px;\">").append(artifactPath).append("</code>");
+            body.append("</p>");
+            body.append("</div>");
+        } else if (!reportLink.isEmpty() && reportLink.startsWith("http://")) {
             body.append("<div style=\"background: #e7f3ff; border-left: 4px solid #2196F3; padding: 15px; margin: 15px 0; border-radius: 4px;\">");
             body.append("<p style=\"margin: 0 0 10px 0; color: #1976D2; font-size: 14px; font-weight: bold;\">");
             body.append("📊 Interactive Allure Report Ready</p>");

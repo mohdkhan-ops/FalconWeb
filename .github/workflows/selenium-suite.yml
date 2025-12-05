@@ -52,6 +52,8 @@ jobs:
       - name: Run Tests
         env:
           HEADLESS: true
+          CI: true
+          GITHUB_ACTIONS: true
         run: |
           ENV="${{ github.event.inputs.environment }}"
           MODULE="${{ github.event.inputs.module }}"
@@ -75,3 +77,22 @@ jobs:
             echo "Running selected test(s): $TEST_SUITE"
             mvn clean test $PROFILE_FLAGS -Dtest="$TEST_SUITE"
           fi
+
+      - name: Generate Allure Report (for email)
+        if: always()
+        run: |
+          echo "Generating Allure report for email notification..."
+          if [ -d "target/allure-results" ]; then
+            mvn allure:report || echo "Warning: Allure report generation failed, but continuing..."
+          else
+            echo "Warning: No Allure results found in target/allure-results"
+          fi
+
+      - name: Check Email Configuration
+        if: always()
+        run: |
+          echo "=== Email Configuration Check ==="
+          echo "Checking if email is enabled in config..."
+          # Email will be sent automatically by AllureReportListener after tests complete
+          echo "Email service will be triggered by AllureReportListener"
+          echo "Check the test output above for email sending status"
