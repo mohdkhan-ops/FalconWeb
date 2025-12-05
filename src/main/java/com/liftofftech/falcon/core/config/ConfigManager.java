@@ -9,7 +9,8 @@ import java.util.Properties;
 /**
  * Centralized configuration accessor. Values are resolved in the following priority:
  *  1. System property (-Dkey=value)
- *  2. config.properties entry under src/test/resources
+ *  2. Environment variable (case-insensitive, with dots converted to underscores)
+ *  3. config.properties entry under src/test/resources
  */
 public final class ConfigManager {
 
@@ -38,13 +39,65 @@ public final class ConfigManager {
         }
     }
 
+    /**
+     * Gets environment variable value, checking both exact key and key with dots converted to underscores.
+     * Also checks uppercase version for common environment variable naming conventions.
+     */
+    private static String getEnv(String key) {
+        // Check exact key
+        String value = System.getenv(key);
+        if (value != null) {
+            return value;
+        }
+        
+        // Check with dots converted to underscores (e.g., "headless" -> "HEADLESS")
+        String envKey = key.replace('.', '_').toUpperCase();
+        value = System.getenv(envKey);
+        if (value != null) {
+            return value;
+        }
+        
+        // Check lowercase version
+        value = System.getenv(key.toLowerCase());
+        if (value != null) {
+            return value;
+        }
+        
+        return null;
+    }
+
     public static String get(String key) {
-        return System.getProperty(key, PROPERTIES.getProperty(key));
+        // Priority 1: System property
+        String value = System.getProperty(key);
+        if (value != null) {
+            return value;
+        }
+        
+        // Priority 2: Environment variable
+        value = getEnv(key);
+        if (value != null) {
+            return value;
+        }
+        
+        // Priority 3: Config file property
+        return PROPERTIES.getProperty(key);
     }
 
     public static String get(String key, String defaultValue) {
-        return System.getProperty(key,
-                Objects.requireNonNullElse(PROPERTIES.getProperty(key), defaultValue));
+        // Priority 1: System property
+        String value = System.getProperty(key);
+        if (value != null) {
+            return value;
+        }
+        
+        // Priority 2: Environment variable
+        value = getEnv(key);
+        if (value != null) {
+            return value;
+        }
+        
+        // Priority 3: Config file property or default
+        return Objects.requireNonNullElse(PROPERTIES.getProperty(key), defaultValue);
     }
 }
 

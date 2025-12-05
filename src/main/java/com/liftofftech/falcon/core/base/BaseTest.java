@@ -38,11 +38,11 @@ public abstract class BaseTest {
 
     @AfterMethod(alwaysRun = true)
     public void tearDown(ITestResult result) {
-        if (!result.isSuccess() && FrameworkConfig.screenshotOnFailure()) {
+        if (!result.isSuccess() && FrameworkConfig.screenshotOnFailure() && DriverManager.hasDriver()) {
             AllureAttachments.attachScreenshot();
             AllureAttachments.attachPageSource();
         }
-         DriverManager.unload(); // Commented out to keep browser open for debugging
+         DriverManager.unload();
     }
 }
 
