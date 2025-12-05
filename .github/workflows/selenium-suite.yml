@@ -1,0 +1,38 @@
+name: Run Selenium Tests on Cloud
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Choose environment'
+        required: true
+        default: stage
+        type: choice
+        options:
+          - stage
+          - prod
+      testClass:
+        description: 'Optional: Specify test class or method'
+        required: false
+        default: ''
+
+jobs:
+  run-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Set up Java
+      uses: actions/setup-java@v3
+      with:
+        java-version: '17'
+
+    - name: Run Maven tests
+      run: |
+        if [ "${{ github.event.inputs.environment }}" == "stage" ]; then
+          mvn clean test -Dconfig.file=property.stage.config -Dtest=${{ github.event.inputs.testClass }}
+        else
+          mvn clean test -Dconfig.file=property.prod.config -Dtest=${{ github.event.inputs.testClass }}
+        fi
