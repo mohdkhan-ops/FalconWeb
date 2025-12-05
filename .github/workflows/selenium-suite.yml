@@ -33,7 +33,7 @@ jobs:
     - name: Run Maven tests
       run: |
         if [ "${{ github.event.inputs.environment }}" == "stage" ]; then
-          mvn clean test -Dconfig.file=property.stage.config -Dtest=${{ github.event.inputs.testClass }}
+          mvn clean test -U -Dconfig.file=property.stage.config -Dtest=${{ github.event.inputs.testClass }}
         else
-          mvn clean test -Dconfig.file=property.prod.config -Dtest=${{ github.event.inputs.testClass }}
+          mvn clean test -U -Dconfig.file=property.prod.config -Dtest=${{ github.event.inputs.testClass }}
         fi
