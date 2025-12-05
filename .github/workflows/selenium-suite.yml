@@ -3,6 +3,26 @@ name: Run Selenium Tests
 on:
   workflow_dispatch:
     inputs:
+      environment:
+        description: 'Environment to run tests against'
+        required: true
+        type: choice
+        options:
+          - local
+          - stage
+          - prod
+        default: 'stage'
+      module:
+        description: 'Module to test (select "none" for all modules)'
+        required: false
+        type: choice
+        options:
+          - none
+          - image
+          - video
+          - audio
+          - all
+        default: 'none'
       test_suite:
         description: |
           Leave empty → run all tests
@@ -33,68 +53,25 @@ jobs:
         env:
           HEADLESS: true
         run: |
-          if [ -z "${{ github.event.inputs.test_suite }}" ]; then
-            echo "Running all tests"
-            mvn clean test
-          else
-            echo "Running selected test(s): ${{ github.event.inputs.test_suite }}"
-            mvn clean test -Dtest=${{ github.event.inputs.test_suite }}
+          ENV="${{ github.event.inputs.environment }}"
+          MODULE="${{ github.event.inputs.module }}"
+          TEST_SUITE="${{ github.event.inputs.test_suite }}"
+          
+          echo "Environment: $ENV"
+          echo "Module: ${MODULE:-all modules}"
+          echo "Test Suite: ${TEST_SUITE:-all tests}"
+          
+          # Build Maven profile flags
+          PROFILE_FLAGS="-P$ENV"
+          if [ -n "$MODULE" ] && [ "$MODULE" != "none" ]; then
+            PROFILE_FLAGS="$PROFILE_FLAGS -P$MODULE"
           fi
-
-      - name: Generate Allure Report
-        if: always()
-        run: |
-          mvn allure:report
-
-      - name: Get Test Summary
-        if: always()
-        id: test-summary
-        run: |
-          if [ -d "target/allure-results" ]; then
-            TOTAL=$(find target/allure-results -name "*.json" | wc -l)
-            PASSED=$(grep -r "\"status\":\"passed\"" target/allure-results --include="*.json" | wc -l || echo "0")
-            FAILED=$(grep -r "\"status\":\"failed\"" target/allure-results --include="*.json" | wc -l || echo "0")
-            BROKEN=$(grep -r "\"status\":\"broken\"" target/allure-results --include="*.json" | wc -l || echo "0")
-            SKIPPED=$(grep -r "\"status\":\"skipped\"" target/allure-results --include="*.json" | wc -l || echo "0")
-            echo "total=$TOTAL" >> $GITHUB_OUTPUT
-            echo "passed=$PASSED" >> $GITHUB_OUTPUT
-            echo "failed=$FAILED" >> $GITHUB_OUTPUT
-            echo "broken=$BROKEN" >> $GITHUB_OUTPUT
-            echo "skipped=$SKIPPED" >> $GITHUB_OUTPUT
+          
+          # Build Maven command
+          if [ -z "$TEST_SUITE" ]; then
+            echo "Running all tests for $ENV environment"
+            mvn clean test $PROFILE_FLAGS
           else
-            echo "total=0" >> $GITHUB_OUTPUT
-            echo "passed=0" >> $GITHUB_OUTPUT
-            echo "failed=0" >> $GITHUB_OUTPUT
-            echo "broken=0" >> $GITHUB_OUTPUT
-            echo "skipped=0" >> $GITHUB_OUTPUT
+            echo "Running selected test(s): $TEST_SUITE"
+            mvn clean test $PROFILE_FLAGS -Dtest="$TEST_SUITE"
           fi
-
-      - name: Test Summary
-        if: always()
-        run: |
-          echo "## Test Execution Summary" >> $GITHUB_STEP_SUMMARY
-          echo "| Status | Count |" >> $GITHUB_STEP_SUMMARY
-          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
-          echo "| ✅ Passed | ${{ steps.test-summary.outputs.passed }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| ❌ Failed | ${{ steps.test-summary.outputs.failed }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| 🔧 Broken | ${{ steps.test-summary.outputs.broken }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| ⏭️ Skipped | ${{ steps.test-summary.outputs.skipped }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| 📊 Total | ${{ steps.test-summary.outputs.total }} |" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "📥 **Download Allure Report** from the Artifacts section below" >> $GITHUB_STEP_SUMMARY
-
-      - name: Publish Allure Report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: allure-report
-          path: target/site/allure-maven-plugin
-          retention-days: 30
-
-      - name: Archive Allure Results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: allure-results
-          path: target/allure-results
-          retention-days: 30
