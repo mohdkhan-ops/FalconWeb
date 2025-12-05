@@ -1,72 +1,79 @@
-name: Run Selenium Tests with Allure Reports
+name: Run Selenium Tests with Allure
 
 on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Choose environment'
+        description: "Choose environment"
         required: true
         default: stage
         type: choice
         options:
           - stage
           - prod
-      testClass:
-        description: |
-          Optional: 
-          - Leave empty to run all tests from suite XML
-          - Single class: com.liftofftech.falcon.tests.image.ImageGeneratorTests
-          - Single method: com.liftofftech.falcon.tests.image.ImageGeneratorTests#testGenerateImage
-          - Multiple classes: com.liftofftech.falcon.tests.image.ImageGeneratorTests,com.liftofftech.falcon.tests.common.LoginTests
+
+      testType:
+        description: "Test execution type"
+        required: true
+        default: all
+        type: choice
+        options:
+          - all
+          - class
+          - method
+          - multiple
+
+      testValue:
+        description: "Class / Method / Multiple classes (comma separated)"
         required: false
-        default: ''
+        default: ""
 
 jobs:
-  run-tests:
+  selenium-tests:
     runs-on: ubuntu-latest
 
     steps:
-    # 1️⃣ Checkout repository
-    - name: Checkout repository
-      uses: actions/checkout@v3
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-    # 2️⃣ Set up Java
     - name: Set up Java
       uses: actions/setup-java@v3
       with:
-        distribution: 'temurin'
-        java-version: '17'
+        distribution: temurin
+        java-version: "17"
 
-    # 3️⃣ Clean Maven project
-    - name: Clean Maven project
-      run: mvn clean
-
-    # 4️⃣ Run Maven tests with optional testClass
-    - name: Run Maven tests
+    - name: Install Allure CLI
       run: |
-        TEST_CLASS_ARG=""
-        if [ ! -z "${{ github.event.inputs.testClass }}" ]; then
-          TEST_CLASS_ARG="-Dtest=$(echo ${{ github.event.inputs.testClass }} | tr ',' '+')"
+        sudo apt-add-repository ppa:qameta/allure -y
+        sudo apt-get update
+        sudo apt-get install allure -y
+        allure --version
+
+    - name: Run Selenium tests
+      env:
+        ENV: ${{ github.event.inputs.environment }}
+        TYPE: ${{ github.event.inputs.testType }}
+        VALUE: ${{ github.event.inputs.testValue }}
+      run: |
+        if [ "$TYPE" = "all" ]; then
+          mvn clean test -Dconfig.file=property.$ENV.config
+
+        elif [ "$TYPE" = "class" ]; then
+          mvn clean test -Dconfig.file=property.$ENV.config -Dtest=$VALUE
+
+        elif [ "$TYPE" = "method" ]; then
+          mvn clean test -Dconfig.file=property.$ENV.config -Dtest=$VALUE
+
+        elif [ "$TYPE" = "multiple" ]; then
+          mvn clean test -Dconfig.file=property.$ENV.config -Dtest=$VALUE
         fi
 
-        if [ "${{ github.event.inputs.environment }}" == "stage" ]; then
-          CONFIG_ARG="-Dconfig.file=property.stage.config"
-          echo "Running tests in STAGE environment..."
-        else
-          CONFIG_ARG="-Dconfig.file=property.prod.config"
-          echo "Running tests in PROD environment..."
-        fi
+    - name: Generate Allure Report
+      if: always()
+      run: mvn allure:report
 
-        # Run Maven tests and generate Allure results
-        mvn clean test $CONFIG_ARG $TEST_CLASS_ARG
-
-    # 5️⃣ Generate Allure report
-    - name: Generate Allure report
-      run: |
-        mvn allure:report
-
-    # 6️⃣ Upload Allure report
     - name: Upload Allure Report
+      if: always()
       uses: actions/upload-artifact@v4
       with:
         name: allure-report
