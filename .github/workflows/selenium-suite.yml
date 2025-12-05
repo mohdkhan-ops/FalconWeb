@@ -1,4 +1,4 @@
-name: Run Selenium Tests on Cloud
+name: Run Selenium Tests with Allure Reports
 
 on:
   workflow_dispatch:
@@ -41,17 +41,14 @@ jobs:
     - name: Clean Maven project
       run: mvn clean
 
-    # 4️⃣ Run Maven tests dynamically
+    # 4️⃣ Run Maven tests with optional testClass
     - name: Run Maven tests
       run: |
-        # Prepare -Dtest argument
         TEST_CLASS_ARG=""
         if [ ! -z "${{ github.event.inputs.testClass }}" ]; then
-          # Replace commas with + for multiple classes
           TEST_CLASS_ARG="-Dtest=$(echo ${{ github.event.inputs.testClass }} | tr ',' '+')"
         fi
 
-        # Select environment config
         if [ "${{ github.event.inputs.environment }}" == "stage" ]; then
           CONFIG_ARG="-Dconfig.file=property.stage.config"
           echo "Running tests in STAGE environment..."
@@ -60,13 +57,17 @@ jobs:
           echo "Running tests in PROD environment..."
         fi
 
-        # Run Maven with optional -Dtest
-        mvn test -U $CONFIG_ARG $TEST_CLASS_ARG
+        # Run Maven tests and generate Allure results
+        mvn clean test $CONFIG_ARG $TEST_CLASS_ARG
 
-    # 5️⃣ Upload Surefire reports for debugging
-    - name: Upload Surefire reports
-      if: always()
-      uses: actions/upload-artifact@v3
+    # 5️⃣ Generate Allure report
+    - name: Generate Allure report
+      run: |
+        mvn allure:report
+
+    # 6️⃣ Upload Allure report
+    - name: Upload Allure Report
+      uses: actions/upload-artifact@v4
       with:
-        name: surefire-reports
-        path: target/surefire-reports/
+        name: allure-report
+        path: target/site/allure-maven-plugin
