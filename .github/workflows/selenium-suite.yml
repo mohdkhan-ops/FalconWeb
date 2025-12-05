@@ -96,3 +96,5 @@ jobs:
           # Email will be sent automatically by AllureReportListener after tests complete
           echo "Email service will be triggered by AllureReportListener"
           echo "Check the test output above for email sending status"
+
+
