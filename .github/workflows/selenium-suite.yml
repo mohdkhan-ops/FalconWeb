@@ -29,10 +29,27 @@ jobs:
       with:
         java-version: '17'
 
+    - name: Install Chrome dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y wget gnupg
+        wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+        sudo sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list'
+        sudo apt-get update
+        sudo apt-get install -y google-chrome-stable
+
     - name: Run Maven tests
       run: |
         if [ "${{ github.event.inputs.environment }}" == "stage" ]; then
-          mvn clean test -Dconfig.file=property.stage.config -Dtest=${{ github.event.inputs.testClass }}
+          if [ -z "${{ github.event.inputs.testClass }}" ]; then
+            mvn clean test -Pstage -Dconfig.file=property.stage.config
+          else
+            mvn clean test -Dconfig.file=property.stage.config -Dtest=${{ github.event.inputs.testClass }}
+          fi
         else
-          mvn clean test -Dconfig.file=property.prod.config -Dtest=${{ github.event.inputs.testClass }}
+          if [ -z "${{ github.event.inputs.testClass }}" ]; then
+            mvn clean test -Pprod -Dconfig.file=property.prod.config
+          else
+            mvn clean test -Dconfig.file=property.prod.config -Dtest=${{ github.event.inputs.testClass }}
+          fi
         fi

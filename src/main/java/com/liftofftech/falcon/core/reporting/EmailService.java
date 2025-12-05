@@ -33,8 +33,36 @@ public final class EmailService {
      * Generates the report and attaches it to the email.
      */
     public static void sendAllureReport() {
+        System.out.println("=== EmailService: Checking email configuration ===");
+        System.out.println("Environment: " + FrameworkConfig.environment());
+        System.out.println("Email enabled: " + FrameworkConfig.emailEnabled());
+        
         if (!FrameworkConfig.emailEnabled()) {
             System.out.println("Email notifications are disabled. Skipping email send.");
+            return;
+        }
+        
+        // Debug: Print email configuration (mask password)
+        String username = FrameworkConfig.emailUsername();
+        String password = FrameworkConfig.emailPassword();
+        String recipients = FrameworkConfig.emailRecipients();
+        String from = FrameworkConfig.emailFrom();
+        String smtpHost = FrameworkConfig.emailSmtpHost();
+        String smtpPort = FrameworkConfig.emailSmtpPort();
+        
+        System.out.println("Email config - SMTP Host: " + smtpHost);
+        System.out.println("Email config - SMTP Port: " + smtpPort);
+        System.out.println("Email config - Username: " + (username != null ? username : "NULL"));
+        System.out.println("Email config - Password: " + (password != null && password.length() > 3 ? "***" + password.substring(password.length() - 3) : (password != null ? "***" : "NULL")));
+        System.out.println("Email config - From: " + (from != null ? from : "NULL"));
+        System.out.println("Email config - Recipients: " + (recipients != null ? recipients : "NULL"));
+        
+        // Validate email configuration before proceeding
+        String validationError = validateEmailConfiguration();
+        if (validationError != null) {
+            System.err.println("ERROR: Email configuration validation failed: " + validationError);
+            System.err.println("Please check your property.stage.config file for missing or invalid email settings.");
+            System.err.println("Config file being used: " + System.getProperty("config.file", "property.config"));
             return;
         }
         
@@ -50,6 +78,50 @@ public final class EmailService {
             System.err.println("ERROR: Failed to send email: " + e.getMessage());
             e.printStackTrace();
         }
+    }
+    
+    /**
+     * Validates that all required email configuration values are present and non-empty.
+     * 
+     * @return null if validation passes, error message if validation fails
+     */
+    private static String validateEmailConfiguration() {
+        String username = FrameworkConfig.emailUsername();
+        String password = FrameworkConfig.emailPassword();
+        String recipients = FrameworkConfig.emailRecipients();
+        String from = FrameworkConfig.emailFrom();
+        String smtpHost = FrameworkConfig.emailSmtpHost();
+        String smtpPort = FrameworkConfig.emailSmtpPort();
+        
+        if (username == null || username.trim().isEmpty()) {
+            return "email.username is missing or empty";
+        }
+        if (password == null || password.trim().isEmpty()) {
+            return "email.password is missing or empty";
+        }
+        if (recipients == null || recipients.trim().isEmpty()) {
+            return "email.recipients is missing or empty";
+        }
+        if (from == null || from.trim().isEmpty()) {
+            return "email.from is missing or empty";
+        }
+        if (smtpHost == null || smtpHost.trim().isEmpty()) {
+            return "email.smtp.host is missing or empty";
+        }
+        if (smtpPort == null || smtpPort.trim().isEmpty()) {
+            return "email.smtp.port is missing or empty";
+        }
+        
+        // Validate email format for recipients
+        String[] recipientList = recipients.split(",");
+        for (String recipient : recipientList) {
+            String trimmed = recipient.trim();
+            if (trimmed.isEmpty() || !trimmed.contains("@")) {
+                return "Invalid email recipient format: " + trimmed;
+            }
+        }
+        
+        return null; // Validation passed
     }
 
     /**
@@ -199,31 +271,68 @@ public final class EmailService {
      */
     private static String generateMavenSiteReport(String resultsDir, String projectDir) {
         try {
+            // Convert resultsDir to absolute path if it's relative
+            Path resultsPath = Paths.get(resultsDir);
+            if (!resultsPath.isAbsolute()) {
+                resultsPath = Paths.get(projectDir, resultsDir);
+            }
+            String absoluteResultsDir = resultsPath.toAbsolutePath().toString();
+            
+            // Use Maven wrapper if available, otherwise use system mvn
+            String mavenCmd = "mvn";
+            Path mvnwPath = Paths.get(projectDir, "mvnw");
+            if (Files.exists(mvnwPath)) {
+                mavenCmd = mvnwPath.toAbsolutePath().toString();
+            }
+            
+            System.out.println("Generating Allure report using Maven plugin...");
+            System.out.println("Results directory: " + absoluteResultsDir);
+            
             ProcessBuilder processBuilder = new ProcessBuilder(
-                "mvn", "allure:report", "-Dallure.results.directory=" + resultsDir
+                mavenCmd, "allure:report", 
+                "-Dallure.results.directory=" + absoluteResultsDir,
+                "-q" // quiet mode to reduce output
             );
             processBuilder.directory(new java.io.File(projectDir));
+            
             processBuilder.redirectErrorStream(true);
             Process process = processBuilder.start();
             
             java.io.BufferedReader reader = new java.io.BufferedReader(
                 new java.io.InputStreamReader(process.getInputStream()));
             String line;
+            boolean hasError = false;
+            StringBuilder errorOutput = new StringBuilder();
             while ((line = reader.readLine()) != null) {
-                System.out.println("Maven Allure output: " + line);
+                if (line.contains("ERROR") || line.contains("BUILD FAILURE") || line.contains("Exception")) {
+                    hasError = true;
+                    errorOutput.append(line).append("\n");
+                }
             }
             
             int exitCode = process.waitFor();
             if (exitCode == 0) {
                 String mavenReportDir = "target/site/allure-maven-plugin";
-                if (Files.exists(Paths.get(mavenReportDir))) {
-                    System.out.println("Maven site page generated (limited functionality).");
+                Path reportPath = Paths.get(projectDir, mavenReportDir);
+                if (Files.exists(reportPath)) {
+                    System.out.println("Maven site page generated successfully.");
                     return mavenReportDir;
+                } else {
+                    System.err.println("Maven report directory not found: " + mavenReportDir);
+                    if (hasError && errorOutput.length() > 0) {
+                        System.err.println("Maven errors: " + errorOutput.toString());
+                    }
+                }
+            } else {
+                System.err.println("Maven allure:report failed with exit code: " + exitCode);
+                if (errorOutput.length() > 0) {
+                    System.err.println("Error details: " + errorOutput.toString());
                 }
             }
             return null;
         } catch (Exception e) {
             System.err.println("Failed to generate Maven site report: " + e.getMessage());
+            e.printStackTrace();
             return null;
         }
     }
@@ -292,7 +401,24 @@ public final class EmailService {
         String reportLink = startHttpServer(reportDirPath, htmlFile);
         
         message.setContent(buildEmailBody(reportLink, reportPath), "text/html; charset=utf-8");
-        Transport.send(message);
+        
+        System.out.println("Attempting to send email via SMTP...");
+        try {
+            Transport.send(message);
+            System.out.println("Email sent successfully!");
+        } catch (AuthenticationFailedException e) {
+            System.err.println("ERROR: SMTP authentication failed. Please check:");
+            System.err.println("  1. Email username and password are correct");
+            System.err.println("  2. For Gmail, ensure you're using an App Password (not your regular password)");
+            System.err.println("  3. 'Less secure app access' might need to be enabled (if not using App Password)");
+            System.err.println("  4. Check if 2FA is enabled and use App Password accordingly");
+            throw new Exception("SMTP Authentication failed: " + e.getMessage(), e);
+        } catch (MessagingException e) {
+            System.err.println("ERROR: Failed to send email via SMTP: " + e.getMessage());
+            System.err.println("SMTP Host: " + FrameworkConfig.emailSmtpHost());
+            System.err.println("SMTP Port: " + FrameworkConfig.emailSmtpPort());
+            throw new Exception("Email sending failed: " + e.getMessage(), e);
+        }
     }
 
     /**

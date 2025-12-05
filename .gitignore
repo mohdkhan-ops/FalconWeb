@@ -31,5 +31,5 @@ secrets.properties
 # Node (if any)
 node_modules/
 
-
-
+# Allure installation (downloaded by Maven plugin)
+.allure/

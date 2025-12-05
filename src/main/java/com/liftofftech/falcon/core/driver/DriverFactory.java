@@ -86,8 +86,15 @@ public final class DriverFactory {
         options.addArguments("--disable-notifications");
         options.addArguments("--disable-dev-shm-usage");
         options.addArguments("--no-sandbox");
+        options.addArguments("--disable-gpu");
+        options.addArguments("--disable-extensions");
+        options.addArguments("--remote-debugging-port=0");
+        
         if (FrameworkConfig.headless()) {
             options.addArguments("--headless=new");
+            // Additional arguments for headless mode in CI/CD environments
+            options.addArguments("--window-size=1920,1080");
+            options.addArguments("--disable-software-rasterizer");
         }
     }
 }

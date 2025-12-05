@@ -38,11 +38,21 @@ public abstract class BaseTest {
 
     @AfterMethod(alwaysRun = true)
     public void tearDown(ITestResult result) {
-        if (!result.isSuccess() && FrameworkConfig.screenshotOnFailure()) {
-            AllureAttachments.attachScreenshot();
-            AllureAttachments.attachPageSource();
+        try {
+            // Only attach screenshots if driver was successfully initialized
+            if (!result.isSuccess() && FrameworkConfig.screenshotOnFailure()) {
+                try {
+                    AllureAttachments.attachScreenshot();
+                    AllureAttachments.attachPageSource();
+                } catch (Exception e) {
+                    // If driver wasn't initialized, skip screenshot attachment
+                    System.out.println("Skipping screenshot attachment: " + e.getMessage());
+                }
+            }
+        } finally {
+            // Always try to clean up driver, even if initialization failed
+            DriverManager.unload();
         }
-        // DriverManager.unload(); // Commented out to keep browser open for debugging
     }
 }
 

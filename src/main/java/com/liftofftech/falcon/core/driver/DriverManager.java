@@ -25,8 +25,14 @@ public final class DriverManager {
     public static void unload() {
         WebDriver driver = DRIVER.get();
         if (driver != null) {
-            driver.quit();
-            DRIVER.remove();
+            try {
+                driver.quit();
+            } catch (Exception e) {
+                // Log but don't throw - driver cleanup should not fail tests
+                System.err.println("Warning: Error during driver cleanup: " + e.getMessage());
+            } finally {
+                DRIVER.remove();
+            }
         }
     }
 }
