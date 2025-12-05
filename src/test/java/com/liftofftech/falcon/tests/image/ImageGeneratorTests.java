@@ -184,7 +184,7 @@ public class ImageGeneratorTests extends BaseTest {
         // Wait for prompt to be applied to DESC_PROMPT
         page.waitUntilVisible(DESC_PROMPT);
         
-        // Get the text from DESC_PROMPT
+        // Get the text from DESC_PROMPT test
         String descPromptText = page.getAttribute(DESC_PROMPT, "value");
         
         // Compare - GENERATED_PROMPT_DIV contains "Option 1\n" prefix, so use contains
