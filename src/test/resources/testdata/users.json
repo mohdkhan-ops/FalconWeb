@@ -1,0 +1,15 @@
+[
+  {
+    "description": "Valid system user",
+    "username": "tomsmith",
+    "password": "SuperSecretPassword!",
+    "valid": true
+  },
+  {
+    "description": "Invalid user",
+    "username": "lockedUser",
+    "password": "invalid",
+    "valid": false
+  }
+]
+

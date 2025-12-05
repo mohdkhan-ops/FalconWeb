@@ -1,0 +1,2 @@
+"Status","Start Time","Stop Time","Duration in ms","Parent Suite","Suite","Sub Suite","Test Class","Test Method","Name","Description"
+"passed","Mon Dec 01 18:39:22 IST 2025","Mon Dec 01 18:39:25 IST 2025","2808","Falcon Automation Suite - Image Module","Image Module Tests","com.liftofftech.falcon.tests.image.ImageGeneratorTests","com.liftofftech.falcon.tests.image.ImageGeneratorTests","shouldShowRightPanelPlaceholder","Verify right panel shows placeholder",""
