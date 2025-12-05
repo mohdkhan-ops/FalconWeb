@@ -12,7 +12,12 @@ on:
           - stage
           - prod
       testClass:
-        description: 'Optional: Fully qualified test class or method (e.g., com.liftofftech.falcon.tests.image.ImageGeneratorTests)'
+        description: |
+          Optional: 
+          - Leave empty to run all tests from suite XML
+          - Single class: com.liftofftech.falcon.tests.image.ImageGeneratorTests
+          - Single method: com.liftofftech.falcon.tests.image.ImageGeneratorTests#testGenerateImage
+          - Multiple classes: com.liftofftech.falcon.tests.image.ImageGeneratorTests,com.liftofftech.falcon.tests.common.LoginTests
         required: false
         default: ''
 
@@ -21,7 +26,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # 1️⃣ Checkout the repository
+    # 1️⃣ Checkout repository
     - name: Checkout repository
       uses: actions/checkout@v3
 
@@ -29,24 +34,39 @@ jobs:
     - name: Set up Java
       uses: actions/setup-java@v3
       with:
-        distribution: 'temurin'   # Required in v3
+        distribution: 'temurin'
         java-version: '17'
 
-    # 3️⃣ Run Maven tests
+    # 3️⃣ Clean Maven project
+    - name: Clean Maven project
+      run: mvn clean
+
+    # 4️⃣ Run Maven tests dynamically
     - name: Run Maven tests
       run: |
-        # Only pass -Dtest if input is not empty
-        if [ -z "${{ github.event.inputs.testClass }}" ]; then
-          TEST_CLASS_ARG=""
-        else
-          TEST_CLASS_ARG="-Dtest=${{ github.event.inputs.testClass }}"
+        # Prepare -Dtest argument
+        TEST_CLASS_ARG=""
+        if [ ! -z "${{ github.event.inputs.testClass }}" ]; then
+          # Replace commas with + for multiple classes
+          TEST_CLASS_ARG="-Dtest=$(echo ${{ github.event.inputs.testClass }} | tr ',' '+')"
         fi
 
-        # Run tests based on environment
+        # Select environment config
         if [ "${{ github.event.inputs.environment }}" == "stage" ]; then
+          CONFIG_ARG="-Dconfig.file=property.stage.config"
           echo "Running tests in STAGE environment..."
-          mvn clean test -U -Dconfig.file=property.stage.config $TEST_CLASS_ARG
         else
+          CONFIG_ARG="-Dconfig.file=property.prod.config"
           echo "Running tests in PROD environment..."
-          mvn clean test -U -Dconfig.file=property.prod.config $TEST_CLASS_ARG
         fi
+
+        # Run Maven with optional -Dtest
+        mvn test -U $CONFIG_ARG $TEST_CLASS_ARG
+
+    # 5️⃣ Upload Surefire reports for debugging
+    - name: Upload Surefire reports
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: surefire-reports
+        path: target/surefire-reports/
