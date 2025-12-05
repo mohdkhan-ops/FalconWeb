@@ -40,3 +40,61 @@ jobs:
             echo "Running selected test(s): ${{ github.event.inputs.test_suite }}"
             mvn clean test -Dtest=${{ github.event.inputs.test_suite }}
           fi
+
+      - name: Generate Allure Report
+        if: always()
+        run: |
+          mvn allure:report
+
+      - name: Get Test Summary
+        if: always()
+        id: test-summary
+        run: |
+          if [ -d "target/allure-results" ]; then
+            TOTAL=$(find target/allure-results -name "*.json" | wc -l)
+            PASSED=$(grep -r "\"status\":\"passed\"" target/allure-results --include="*.json" | wc -l || echo "0")
+            FAILED=$(grep -r "\"status\":\"failed\"" target/allure-results --include="*.json" | wc -l || echo "0")
+            BROKEN=$(grep -r "\"status\":\"broken\"" target/allure-results --include="*.json" | wc -l || echo "0")
+            SKIPPED=$(grep -r "\"status\":\"skipped\"" target/allure-results --include="*.json" | wc -l || echo "0")
+            echo "total=$TOTAL" >> $GITHUB_OUTPUT
+            echo "passed=$PASSED" >> $GITHUB_OUTPUT
+            echo "failed=$FAILED" >> $GITHUB_OUTPUT
+            echo "broken=$BROKEN" >> $GITHUB_OUTPUT
+            echo "skipped=$SKIPPED" >> $GITHUB_OUTPUT
+          else
+            echo "total=0" >> $GITHUB_OUTPUT
+            echo "passed=0" >> $GITHUB_OUTPUT
+            echo "failed=0" >> $GITHUB_OUTPUT
+            echo "broken=0" >> $GITHUB_OUTPUT
+            echo "skipped=0" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Test Summary
+        if: always()
+        run: |
+          echo "## Test Execution Summary" >> $GITHUB_STEP_SUMMARY
+          echo "| Status | Count |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| ✅ Passed | ${{ steps.test-summary.outputs.passed }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| ❌ Failed | ${{ steps.test-summary.outputs.failed }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔧 Broken | ${{ steps.test-summary.outputs.broken }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| ⏭️ Skipped | ${{ steps.test-summary.outputs.skipped }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 📊 Total | ${{ steps.test-summary.outputs.total }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📥 **Download Allure Report** from the Artifacts section below" >> $GITHUB_STEP_SUMMARY
+
+      - name: Publish Allure Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-report
+          path: target/site/allure-maven-plugin
+          retention-days: 30
+
+      - name: Archive Allure Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-results
+          path: target/allure-results
+          retention-days: 30
