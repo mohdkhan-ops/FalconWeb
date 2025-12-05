@@ -42,7 +42,7 @@ public abstract class BaseTest {
             AllureAttachments.attachScreenshot();
             AllureAttachments.attachPageSource();
         }
-        // DriverManager.unload(); // Commented out to keep browser open for debugging
+         DriverManager.unload(); // Commented out to keep browser open for debugging
     }
 }
 
