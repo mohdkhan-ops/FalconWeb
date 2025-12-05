@@ -6,25 +6,18 @@ on:
       environment:
         description: "Choose environment"
         required: true
-        default: stage
         type: choice
+        default: stage
         options:
           - stage
           - prod
 
-      testType:
-        description: "Test execution type"
-        required: true
-        default: all
-        type: choice
-        options:
-          - all
-          - class
-          - method
-          - multiple
-
-      testValue:
-        description: "Class / Method / Multiple classes (comma separated)"
+      test:
+        description: |
+          Leave empty → run all tests
+          Single class → ImageGeneratorTests
+          Specific method → ImageGeneratorTests#testGenerateImage
+          Multiple classes → ClassA,ClassB
         required: false
         default: ""
 
@@ -33,48 +26,70 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      # 1️⃣ Checkout code
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Set up Java
-      uses: actions/setup-java@v3
-      with:
-        distribution: temurin
-        java-version: "17"
+      # 2️⃣ Setup Java
+      - name: Set up Java 17
+        uses: actions/setup-java@v3
+        with:
+          distribution: temurin
+          java-version: "17"
 
-    - name: Install Allure CLI
-      run: |
-        sudo apt-add-repository ppa:qameta/allure -y
-        sudo apt-get update
-        sudo apt-get install allure -y
-        allure --version
+      # 3️⃣ Cache Maven dependencies (faster builds)
+      - name: Cache Maven
+        uses: actions/cache@v3
+        with:
+          path: ~/.m2
+          key: maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: maven-
 
-    - name: Run Selenium tests
-      env:
-        ENV: ${{ github.event.inputs.environment }}
-        TYPE: ${{ github.event.inputs.testType }}
-        VALUE: ${{ github.event.inputs.testValue }}
-      run: |
-        if [ "$TYPE" = "all" ]; then
-          mvn clean test -Dconfig.file=property.$ENV.config
+      # 4️⃣ Install Chrome (for Selenium)
+      - name: Install Google Chrome
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y google-chrome-stable
+          google-chrome --version
 
-        elif [ "$TYPE" = "class" ]; then
-          mvn clean test -Dconfig.file=property.$ENV.config -Dtest=$VALUE
+      # 5️⃣ Install Allure CLI (PPA-free, CI safe)
+      - name: Install Allure CLI
+        run: |
+          ALLURE_VERSION=2.27.0
+          curl -Ls -o allure.tgz \
+            https://github.com/allure-framework/allure2/releases/download/${ALLURE_VERSION}/allure-${ALLURE_VERSION}.tgz
+          sudo tar -zxvf allure.tgz -C /opt/
+          sudo ln -s /opt/allure-${ALLURE_VERSION}/bin/allure /usr/bin/allure
+          allure --version
 
-        elif [ "$TYPE" = "method" ]; then
-          mvn clean test -Dconfig.file=property.$ENV.config -Dtest=$VALUE
+      # 6️⃣ Run Selenium tests
+      - name: Run Selenium Tests
+        run: |
+          if [ "${{ github.event.inputs.environment }}" == "stage" ]; then
+            CONFIG="property.stage.config"
+          else
+            CONFIG="property.prod.config"
+          fi
 
-        elif [ "$TYPE" = "multiple" ]; then
-          mvn clean test -Dconfig.file=property.$ENV.config -Dtest=$VALUE
-        fi
+          if [ -z "${{ github.event.inputs.test }}" ]; then
+            echo "Running ALL tests"
+            mvn clean test -Dconfig.file=$CONFIG
+          else
+            echo "Running tests: ${{ github.event.inputs.test }}"
+            mvn clean test \
+              -Dconfig.file=$CONFIG \
+              -Dtest=${{ github.event.inputs.test }}
+          fi
 
-    - name: Generate Allure Report
-      if: always()
-      run: mvn allure:report
+      # 7️⃣ Generate Allure Report (even if tests fail)
+      - name: Generate Allure Report
+        if: always()
+        run: mvn allure:report
 
-    - name: Upload Allure Report
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: allure-report
-        path: target/site/allure-maven-plugin
+      # 8️⃣ Upload Allure Report
+      - name: Upload Allure Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-report
+          path: target/site/allure-maven-plugin
