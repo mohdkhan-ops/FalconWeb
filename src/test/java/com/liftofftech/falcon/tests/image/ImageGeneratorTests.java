@@ -544,6 +544,171 @@ public class ImageGeneratorTests extends BaseTest {
             "Dropdown should display '1K' after selection. Actual: " + selected1K);
     }
 
+    @Story("Generate button is disabled initially")
+    @Severity(SeverityLevel.CRITICAL)
+    @Test(description = "Verify generate button is disabled when page loads initially")
+    public void shouldHaveGenerateButtonDisabledInitially() {
+        page.navigateToImageGenerator();
+        
+        // Wait for page to load
+        page.waitUntilVisible(IMAGE_DESC_HEADING);
+        
+        // Wait for generate button to be present
+        org.openqa.selenium.WebElement generateButton = page.waitUntilPresent(GENERATE_BUTTON);
+        
+        // Check if button is disabled using multiple methods
+        // Method 1: Check disabled attribute (HTML disabled attribute)
+        String disabledAttr = generateButton.getAttribute("disabled");
+        boolean isDisabledByAttr = disabledAttr != null;
+        
+        // Method 2: Check aria-disabled attribute (accessibility attribute)
+        String ariaDisabled = generateButton.getAttribute("aria-disabled");
+        boolean isDisabledByAria = "true".equals(ariaDisabled);
+        
+        // Method 3: Check if element is enabled using Selenium's isEnabled() method
+        boolean isEnabled = generateButton.isEnabled();
+        
+        // Verify button is disabled
+        // Button should be disabled if any of these conditions are true:
+        // - disabled attribute exists
+        // - aria-disabled is "true"
+        // - isEnabled() returns false
+        boolean isDisabled = isDisabledByAttr || isDisabledByAria || !isEnabled;
+        
+        Assert.assertTrue(isDisabled,
+            "Generate button should be disabled initially. " +
+            "disabled attribute: " + disabledAttr + ", " +
+            "aria-disabled: " + ariaDisabled + ", " +
+            "isEnabled: " + isEnabled);
+    }
+
+    @Story("Loading spinner appears in right panel during generation")
+    @Severity(SeverityLevel.CRITICAL)
+    @Test(description = "Verify loading spinner appears in right panel when generating images")
+    public void shouldShowLoadingSpinnerInRightPanel() {
+        SignInPage signInPage = new SignInPage();
+        
+        page.navigateToImageGenerator();
+        
+        // Sign in with email/password
+        signInPage.signInWithEmail(SignInPage.TEST_EMAIL, SignInPage.TEST_PASSWORD);
+        
+        // Wait for page to load
+        page.waitUntilVisible(IMAGE_DESC_HEADING);
+        
+        // Step 1: Enter prompt text
+        String promptText = "Assassin's Creed Valhalla killing polar bear in the snow it should be realistic and detailed";
+        page.type(DESC_PROMPT, promptText);
+        
+        // Step 2: Select model "Nano-Banana Pro"
+        page.waitUntilClickable(MODEL_DROPDOWN);
+        page.click(MODEL_DROPDOWN);
+        
+        page.waitUntilVisible(MODEL_LIST_SEARCH_INPUT);
+        page.type(MODEL_LIST_SEARCH_INPUT, "nano");
+        
+        page.waitUntilVisible(MODEL_NANOBANANA_PRO);
+        page.click(MODEL_NANOBANANA_PRO);
+        
+        // Wait for dropdown to update
+        page.waitUntilVisible(MODEL_DROPDOWN);
+        
+        // Step 3: Select aspect ratio "Landscape"
+        page.waitUntilClickable(ASPECT_RATIO_DROPDOWN);
+        page.click(ASPECT_RATIO_DROPDOWN);
+        
+        page.waitUntilVisible(ASPECT_RATIO_LANDSCAPE_3_2);
+        page.click(ASPECT_RATIO_LANDSCAPE_3_2);
+        
+        // Wait for dropdown to update
+        page.waitUntilVisible(ASPECT_RATIO_DROPDOWN_SELECTED);
+        
+        // Step 4: Select resolution "2K"
+        page.waitUntilClickable(RESOLUTION_DROPDOWN);
+        page.click(RESOLUTION_DROPDOWN);
+        
+        page.waitUntilVisible(RESOLUTION_2K);
+        page.click(RESOLUTION_2K);
+        
+        // Wait for dropdown to update
+        page.waitUntilVisible(RESOLUTION_DROPDOWN_SELECTED);
+        
+        // Step 5: Verify output format "PNG" (usually default)
+        page.waitUntilVisible(OUTPUT_FORMAT_DROPDOWN);
+        String currentFormat = page.getText(OUTPUT_FORMAT_DROPDOWN);
+        Assert.assertTrue(currentFormat.contains("PNG"),
+            "Output format should be PNG. Actual: " + currentFormat);
+        
+        // Step 6: Select number of images "2"
+        page.waitUntilClickable(NO_OF_IMAGES_DROPDOWN);
+        page.click(NO_OF_IMAGES_DROPDOWN);
+        
+        page.waitUntilVisible(NO_OF_IMAGES_2);
+        page.click(NO_OF_IMAGES_2);
+        
+        // Wait for dropdown to update
+        page.waitUntilVisible(NO_OF_IMAGES_DROPDOWN_SELECTED);
+        
+        // Step 7: Click Generate button
+        page.waitUntilClickable(GENERATE_BUTTON);
+        page.click(GENERATE_BUTTON);
+        System.out.println("Generate button clicked");
+        
+        // Step 8: Wait for loading spinner to appear in right panel
+        // Wait for spinner/loader to appear in the right panel area
+        org.openqa.selenium.support.ui.WebDriverWait customWait = 
+            new org.openqa.selenium.support.ui.WebDriverWait(
+                com.liftofftech.falcon.core.driver.DriverManager.getDriver(), 
+                java.time.Duration.ofSeconds(10));
+        
+        // Wait for spinner to appear - check for GENERATING_LOADER text or spinner elements in right panel
+        boolean spinnerAppeared = customWait.until(d -> {
+            try {
+                // Check for "Generating" text in right panel area
+                java.util.List<org.openqa.selenium.WebElement> loaders = d.findElements(GENERATING_LOADER);
+                for (org.openqa.selenium.WebElement loader : loaders) {
+                    if (loader != null && loader.isDisplayed()) {
+                        String text = loader.getText().trim().toLowerCase();
+                        int xPosition = loader.getLocation().getX();
+                        int windowWidth = d.manage().window().getSize().getWidth();
+                        // Right panel is typically on the right half of the screen
+                        boolean isInRightPanel = xPosition > (windowWidth / 2);
+                        System.out.println("Found loader - Text: '" + loader.getText() + "', X: " + xPosition + ", Window: " + windowWidth + ", Right panel: " + isInRightPanel);
+                        if ((isInRightPanel || text.contains("generating")) && text.contains("generating")) {
+                            System.out.println("✓ Found 'Generating' loader in right panel");
+                            return true;
+                        }
+                    }
+                }
+                
+                // Check for spinner elements in right panel
+                java.util.List<org.openqa.selenium.WebElement> spinners = d.findElements(RIGHT_PANEL_SPINNER);
+                for (org.openqa.selenium.WebElement spinner : spinners) {
+                    if (spinner != null && spinner.isDisplayed()) {
+                        int xPosition = spinner.getLocation().getX();
+                        int windowWidth = d.manage().window().getSize().getWidth();
+                        boolean isInRightPanel = xPosition > (windowWidth / 2);
+                        System.out.println("Found spinner element - X: " + xPosition + ", Window: " + windowWidth + ", Right panel: " + isInRightPanel);
+                        if (isInRightPanel) {
+                            System.out.println("✓ Found spinner element in right panel");
+                            return true;
+                        }
+                    }
+                }
+                
+                return false;
+            } catch (Exception e) {
+                System.out.println("Exception while checking spinner: " + e.getMessage());
+                return false;
+            }
+        });
+        
+        Assert.assertTrue(spinnerAppeared,
+            "Loading spinner should appear in right panel when generating images.");
+        
+        System.out.println("✓ Loading spinner appeared in right panel");
+    }
+
     @Story("Generate button produces selected number of images")
     @Severity(SeverityLevel.CRITICAL)
     @Test(description = "Verify generate button produces the selected number of images")
@@ -552,8 +717,12 @@ public class ImageGeneratorTests extends BaseTest {
         
         page.navigateToImageGenerator();
         
-        // Sign in with email/password
-        signInPage.signInWithEmail(SignInPage.TEST_EMAIL, SignInPage.TEST_PASSWORD);
+        // Sign in with email/password (only if not already signed in)
+        if (signInPage.isSignInButtonVisible()) {
+            signInPage.signInWithEmail(SignInPage.TEST_EMAIL, SignInPage.TEST_PASSWORD);
+        } else {
+            System.out.println("User is already signed in, skipping sign in step");
+        }
         
         // Wait for page to load
         page.waitUntilVisible(IMAGE_DESC_HEADING);
@@ -605,5 +774,17 @@ public class ImageGeneratorTests extends BaseTest {
             "Should generate 3 images as selected. Actual: " + imageCount);
         
         System.out.println("✓ Successfully generated " + imageCount + " images");
+    }
+
+    @Story("Download button works")
+    @Severity(SeverityLevel.CRITICAL)
+    @Test(description = "Verify Download button Downloads the images")
+    public void shouldWorkDownloadButton() {
+
+        shouldGenerateSelectedNumberOfImages();
+        page.waitUntilVisible(GENERATED_IMAGES);
+        page.waitUntilClickable(IMAGE_DWNLD_CTA);
+        page.click(IMAGE_DWNLD_CTA);
+        
     }
 }

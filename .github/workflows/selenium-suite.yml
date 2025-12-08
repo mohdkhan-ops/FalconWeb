@@ -59,9 +59,12 @@ jobs:
           MODULE="${{ github.event.inputs.module }}"
           TEST_SUITE="${{ github.event.inputs.test_suite }}"
           
+          echo "=== Test Execution Configuration ==="
           echo "Environment: $ENV"
           echo "Module: ${MODULE:-all modules}"
           echo "Test Suite: ${TEST_SUITE:-all tests}"
+          echo "Headless Mode: Enabled (GitHub Actions)"
+          echo "Parallel Execution: Enabled (configured in testng XML)"
           
           # Build Maven profile flags
           PROFILE_FLAGS="-P$ENV"
@@ -69,9 +72,12 @@ jobs:
             PROFILE_FLAGS="$PROFILE_FLAGS -P$MODULE"
           fi
           
+          # Force headless mode for GitHub Actions (explicit system property)
+          PROFILE_FLAGS="$PROFILE_FLAGS -Dheadless=true"
+          
           # Build Maven command
           if [ -z "$TEST_SUITE" ]; then
-            echo "Running all tests for $ENV environment"
+            echo "Running all tests for $ENV environment with parallel execution"
             mvn clean test $PROFILE_FLAGS
           else
             echo "Running selected test(s): $TEST_SUITE"

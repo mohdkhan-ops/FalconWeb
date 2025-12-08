@@ -45,6 +45,12 @@ public class SignInPage extends BasePage {
      */
     @Step("Sign in with email: {email}")
     public void signInWithEmail(String email, String password) {
+        // Check if already signed in
+        if (!isSignInButtonVisible()) {
+            System.out.println("User is already signed in, skipping sign in");
+            return;
+        }
+        
         // Step 1: Click Sign In button
         waitUntilClickable(SIGNIN_CTA);
         click(SIGNIN_CTA);
