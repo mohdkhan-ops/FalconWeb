@@ -76,7 +76,17 @@ public abstract class BasePage {
 
     /**
      * Types text using JavaScript (avoids keyboard events that might trigger navigation).
+     * Useful for large text inputs or when sendKeys is slow/unreliable.
+     * 
+     * @param locator the element locator
+     * @param value the text to set
      */
+    public void typeUsingJS(By locator, String value) {
+        WebElement element = waitUntilPresent(locator);
+        ((JavascriptExecutor) driver).executeScript(
+            "arguments[0].value = arguments[1]; arguments[0].dispatchEvent(new Event('input', { bubbles: true })); arguments[0].dispatchEvent(new Event('change', { bubbles: true }));",
+            element, value);
+    }
     
 
     /**
