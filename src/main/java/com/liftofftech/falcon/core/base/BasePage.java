@@ -77,14 +77,21 @@ public abstract class BasePage {
     /**
      * Types text using JavaScript (avoids keyboard events that might trigger navigation).
      * Useful for large text inputs or when sendKeys is slow/unreliable.
+     * Properly triggers React onChange handlers.
      * 
      * @param locator the element locator
      * @param value the text to set
      */
     public void typeUsingJS(By locator, String value) {
         WebElement element = waitUntilPresent(locator);
+        // Use native setter to trigger React's onChange handler
         ((JavascriptExecutor) driver).executeScript(
-            "arguments[0].value = arguments[1]; arguments[0].dispatchEvent(new Event('input', { bubbles: true })); arguments[0].dispatchEvent(new Event('change', { bubbles: true }));",
+            "var nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set;" +
+            "nativeInputValueSetter.call(arguments[0], arguments[1]);" +
+            "var event = new Event('input', { bubbles: true });" +
+            "arguments[0].dispatchEvent(event);" +
+            "var changeEvent = new Event('change', { bubbles: true });" +
+            "arguments[0].dispatchEvent(changeEvent);",
             element, value);
     }
     
