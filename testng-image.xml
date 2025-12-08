@@ -1,5 +1,5 @@
 <!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd" >
-<suite name="Falcon Automation Suite - Image Module" verbose="1" parallel="tests" thread-count="2">
+<suite name="Falcon Automation Suite - Image Module" verbose="1" parallel="methods" thread-count="4">
     <listeners>
         <listener class-name="com.liftofftech.falcon.core.reporting.AllureReportListener"/>
     </listeners>

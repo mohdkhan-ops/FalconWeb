@@ -61,15 +61,22 @@ public final class DriverFactory {
         ChromeOptions options = new ChromeOptions();
         applyCommonOptions(options);
         if (FrameworkConfig.platform() == PlatformType.MWEB) {
-            Map<String, Object> deviceMetrics = new HashMap<>();
-            deviceMetrics.put("width", FrameworkConfig.mobileWidth());
-            deviceMetrics.put("height", FrameworkConfig.mobileHeight());
-            deviceMetrics.put("pixelRatio", FrameworkConfig.mobilePixelRatio());
-
             Map<String, Object> mobileEmulation = new HashMap<>();
-            mobileEmulation.put("deviceMetrics", deviceMetrics);
-            mobileEmulation.put("userAgent", FrameworkConfig.mobileUserAgent());
-            mobileEmulation.put("deviceName", FrameworkConfig.mobileDeviceName());
+            
+            // Chrome mobile emulation: Use either deviceName OR deviceMetrics+userAgent, not both
+            // Option 1: Use predefined device name (simpler, uses Chrome's built-in device metrics)
+            String deviceName = FrameworkConfig.mobileDeviceName();
+            if (deviceName != null && !deviceName.isEmpty()) {
+                mobileEmulation.put("deviceName", deviceName);
+            } else {
+                // Option 2: Use custom device metrics and user agent
+                Map<String, Object> deviceMetrics = new HashMap<>();
+                deviceMetrics.put("width", FrameworkConfig.mobileWidth());
+                deviceMetrics.put("height", FrameworkConfig.mobileHeight());
+                deviceMetrics.put("pixelRatio", FrameworkConfig.mobilePixelRatio());
+                mobileEmulation.put("deviceMetrics", deviceMetrics);
+                mobileEmulation.put("userAgent", FrameworkConfig.mobileUserAgent());
+            }
 
             options.setExperimentalOption("mobileEmulation", mobileEmulation);
         }
@@ -86,6 +93,14 @@ public final class DriverFactory {
         options.addArguments("--disable-notifications");
         options.addArguments("--disable-dev-shm-usage");
         options.addArguments("--no-sandbox");
+        // Reduce resource usage for parallel execution
+        options.addArguments("--disable-gpu");
+        options.addArguments("--disable-software-rasterizer");
+        options.addArguments("--disable-extensions");
+        // Prevent browser crashes during parallel execution
+        options.addArguments("--disable-background-timer-throttling");
+        options.addArguments("--disable-backgrounding-occluded-windows");
+        options.addArguments("--disable-renderer-backgrounding");
         if (FrameworkConfig.headless()) {
             options.addArguments("--headless=new");
         }

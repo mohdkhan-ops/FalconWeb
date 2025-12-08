@@ -14,6 +14,13 @@ public abstract class BaseTest {
 
     @BeforeMethod(alwaysRun = true)
     public void setUp() {
+        // Small delay to prevent resource contention in parallel execution
+        try {
+            Thread.sleep(100 * Thread.currentThread().getId() % 3);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        
         WebDriver driver = DriverFactory.createDriver();
         DriverManager.setDriver(driver);
         driver.manage().timeouts().implicitlyWait(FrameworkConfig.implicitWait());
@@ -38,11 +45,25 @@ public abstract class BaseTest {
 
     @AfterMethod(alwaysRun = true)
     public void tearDown(ITestResult result) {
-        if (!result.isSuccess() && FrameworkConfig.screenshotOnFailure() && DriverManager.hasDriver()) {
-            AllureAttachments.attachScreenshot();
-            AllureAttachments.attachPageSource();
+        try {
+            if (!result.isSuccess() && FrameworkConfig.screenshotOnFailure() && DriverManager.hasDriver()) {
+                try {
+                    AllureAttachments.attachScreenshot();
+                    AllureAttachments.attachPageSource();
+                } catch (Exception e) {
+                    // Ignore screenshot errors during parallel execution
+                    System.err.println("Failed to attach screenshot: " + e.getMessage());
+                }
+            }
+        } finally {
+            // Always cleanup driver, even if screenshot fails
+            try {
+                DriverManager.unload();
+            } catch (Exception e) {
+                // Ignore cleanup errors - driver may already be closed
+                System.err.println("Driver cleanup warning: " + e.getMessage());
+            }
         }
-         DriverManager.unload();
     }
 }
 

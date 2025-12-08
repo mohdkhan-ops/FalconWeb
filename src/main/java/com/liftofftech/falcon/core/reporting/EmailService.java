@@ -38,18 +38,127 @@ public final class EmailService {
             return;
         }
         
+        System.out.println("=== Email Service: Starting email report generation ===");
+        System.out.println("Email enabled: " + FrameworkConfig.emailEnabled());
+        System.out.println("SMTP Host: " + FrameworkConfig.emailSmtpHost());
+        System.out.println("SMTP Port: " + FrameworkConfig.emailSmtpPort());
+        System.out.println("Email From: " + FrameworkConfig.emailFrom());
+        System.out.println("Email Recipients: " + FrameworkConfig.emailRecipients());
+        
+        // Validate email configuration before proceeding
+        String validationError = validateEmailConfiguration();
+        if (validationError != null) {
+            System.err.println("ERROR: Email configuration validation failed: " + validationError);
+            System.err.println("Email will not be sent. Please fix the configuration and try again.");
+            return;
+        }
+        
         try {
             String reportPath = generateAllureReport();
-            if (reportPath == null) {
-                System.err.println("ERROR: Failed to generate Allure report. Email not sent.");
-                return;
+            boolean reportGenerated = false;
+            
+            if (reportPath != null) {
+                // Verify report path exists
+                Path reportPathObj = Paths.get(reportPath);
+                if (Files.exists(reportPathObj)) {
+                    System.out.println("Report generated successfully at: " + reportPath);
+                    sendEmailWithLink(reportPath);
+                    System.out.println("SUCCESS: Email sent to " + FrameworkConfig.emailRecipients());
+                    reportGenerated = true;
+                } else {
+                    System.err.println("WARNING: Generated report path does not exist: " + reportPath);
+                }
             }
-            sendEmailWithLink(reportPath);
-            System.out.println("SUCCESS: Email sent to " + FrameworkConfig.emailRecipients());
+            
+            // If report generation failed, send a notification email anyway
+            if (!reportGenerated) {
+                System.err.println("WARNING: Failed to generate Allure report. Sending notification email without report link.");
+                System.err.println("Please check if Allure results exist in target/allure-results");
+                sendNotificationEmailWithoutReport();
+                System.out.println("SUCCESS: Notification email sent to " + FrameworkConfig.emailRecipients());
+            }
+        } catch (java.io.IOException e) {
+            System.err.println("ERROR: Failed to send email (IOException): " + e.getMessage());
+            System.err.println("This might be related to HTTP server startup or file access issues.");
+            e.printStackTrace();
+        } catch (javax.mail.AuthenticationFailedException e) {
+            System.err.println("ERROR: Email authentication failed!");
+            System.err.println("Message: " + e.getMessage());
+            System.err.println("\nTroubleshooting:");
+            System.err.println("1. Verify email.username and email.password are correct in config file");
+            System.err.println("2. For Gmail, ensure you're using an App Password (not regular password)");
+            System.err.println("   - Go to: https://myaccount.google.com/apppasswords");
+            System.err.println("   - Generate an app password for 'Mail'");
+            System.err.println("3. Check if 2FA is enabled on your Gmail account");
+            System.err.println("4. Verify SMTP settings: " + FrameworkConfig.emailSmtpHost() + ":" + FrameworkConfig.emailSmtpPort());
+            e.printStackTrace();
+        } catch (MessagingException e) {
+            System.err.println("ERROR: Failed to send email (MessagingException): " + e.getMessage());
+            System.err.println("Cause: " + (e.getCause() != null ? e.getCause().getMessage() : "Unknown"));
+            e.printStackTrace();
+            System.err.println("\nTroubleshooting:");
+            System.err.println("1. Check if email.enabled=true in config");
+            System.err.println("2. Verify email.username and email.password are correct");
+            System.err.println("3. For Gmail, ensure you're using an App Password (not regular password)");
+            System.err.println("4. Check SMTP settings: " + FrameworkConfig.emailSmtpHost() + ":" + FrameworkConfig.emailSmtpPort());
+            System.err.println("5. Check network connectivity and firewall settings");
         } catch (Exception e) {
             System.err.println("ERROR: Failed to send email: " + e.getMessage());
+            System.err.println("Exception type: " + e.getClass().getName());
             e.printStackTrace();
+            System.err.println("\nTroubleshooting:");
+            System.err.println("1. Check if email configuration is correct in property.stage.config");
+            System.err.println("2. Verify all required email properties are set");
+            System.err.println("3. Check console output above for more details");
         }
+    }
+    
+    /**
+     * Validates email configuration before attempting to send email.
+     * @return error message if validation fails, null if validation passes
+     */
+    private static String validateEmailConfiguration() {
+        String username = FrameworkConfig.emailUsername();
+        String password = FrameworkConfig.emailPassword();
+        String recipients = FrameworkConfig.emailRecipients();
+        String smtpHost = FrameworkConfig.emailSmtpHost();
+        String smtpPort = FrameworkConfig.emailSmtpPort();
+        
+        if (username == null || username.trim().isEmpty()) {
+            return "email.username is not set or is empty";
+        }
+        
+        if (password == null || password.trim().isEmpty()) {
+            return "email.password is not set or is empty";
+        }
+        
+        if (recipients == null || recipients.trim().isEmpty()) {
+            return "email.recipients is not set or is empty";
+        }
+        
+        if (smtpHost == null || smtpHost.trim().isEmpty()) {
+            return "email.smtp.host is not set or is empty";
+        }
+        
+        if (smtpPort == null || smtpPort.trim().isEmpty()) {
+            return "email.smtp.port is not set or is empty";
+        }
+        
+        // Validate email format for username
+        if (!username.contains("@")) {
+            return "email.username does not appear to be a valid email address: " + username;
+        }
+        
+        // Validate recipient email format
+        String[] recipientList = recipients.split(",");
+        for (String recipient : recipientList) {
+            String trimmed = recipient.trim();
+            if (!trimmed.contains("@")) {
+                return "Invalid recipient email format: " + trimmed;
+            }
+        }
+        
+        return null; // Validation passed
     }
 
     /**
@@ -232,14 +341,121 @@ public final class EmailService {
     /**
      * Sends email with Allure report link.
      */
-    private static void sendEmailWithLink(String reportPath) throws Exception {
+    private static void sendEmailWithLink(String reportPath) throws MessagingException, IOException {
+        System.out.println("=== Preparing to send email ===");
+        
         // Configure SMTP properties
         Properties props = new Properties();
         String port = FrameworkConfig.emailSmtpPort();
-        props.put("mail.smtp.host", FrameworkConfig.emailSmtpHost());
+        String smtpHost = FrameworkConfig.emailSmtpHost();
+        
+        System.out.println("Configuring SMTP connection to " + smtpHost + ":" + port);
+        
+        props.put("mail.smtp.host", smtpHost);
         props.put("mail.smtp.port", port);
         props.put("mail.smtp.auth", "true");
-        props.put("mail.smtp.ssl.trust", FrameworkConfig.emailSmtpHost());
+        props.put("mail.smtp.ssl.trust", smtpHost);
+        
+        // Add timeout properties to prevent hanging
+        props.put("mail.smtp.connectiontimeout", "10000"); // 10 seconds
+        props.put("mail.smtp.timeout", "10000"); // 10 seconds
+        
+        if ("465".equals(port)) {
+            System.out.println("Using SSL socket factory for port 465");
+            props.put("mail.smtp.socketFactory.port", "465");
+            props.put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory");
+            props.put("mail.smtp.ssl.enable", "true");
+        } else {
+            System.out.println("Using STARTTLS for port " + port);
+            props.put("mail.smtp.starttls.enable", "true");
+            props.put("mail.smtp.starttls.required", "true");
+        }
+
+        System.out.println("Creating email session...");
+        Session session = Session.getInstance(props, new Authenticator() {
+            @Override
+            protected PasswordAuthentication getPasswordAuthentication() {
+                String username = FrameworkConfig.emailUsername();
+                String password = FrameworkConfig.emailPassword();
+                System.out.println("Authenticating with username: " + username);
+                return new PasswordAuthentication(username, password);
+            }
+        });
+
+        System.out.println("Creating email message...");
+        Message message = new MimeMessage(session);
+        
+        try {
+            message.setFrom(new InternetAddress(FrameworkConfig.emailFrom()));
+        } catch (javax.mail.internet.AddressException e) {
+            throw new MessagingException("Invalid 'from' email address: " + FrameworkConfig.emailFrom(), e);
+        }
+        
+        // Set recipients
+        String recipientsStr = FrameworkConfig.emailRecipients();
+        String[] recipients = recipientsStr.split(",");
+        InternetAddress[] addresses = new InternetAddress[recipients.length];
+        for (int i = 0; i < recipients.length; i++) {
+            try {
+                addresses[i] = new InternetAddress(recipients[i].trim());
+            } catch (javax.mail.internet.AddressException e) {
+                throw new MessagingException("Invalid recipient email address: " + recipients[i], e);
+            }
+        }
+        message.setRecipients(Message.RecipientType.TO, addresses);
+        System.out.println("Email recipients set: " + recipientsStr);
+        
+        // Add timestamp to subject to ensure each email is new (not threaded)
+        String timestamp = java.time.LocalDateTime.now().format(
+            java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+        String subject = FrameworkConfig.emailSubject() + " - " + timestamp;
+        message.setSubject(subject);
+        System.out.println("Email subject: " + subject);
+        
+        // Set unique Message-ID to prevent threading
+        message.setHeader("Message-ID", "<" + System.currentTimeMillis() + "@falcon-automation>");
+        message.setHeader("X-Mailer", "Falcon Automation Framework");
+
+        // Start HTTP server to serve the report
+        System.out.println("Starting HTTP server for report...");
+        Path reportDirPath = Paths.get(reportPath).toAbsolutePath();
+        
+        // Check for index.html (interactive report) or allure-maven.html (Maven site report)
+        Path indexHtml = reportDirPath.resolve("index.html");
+        Path mavenHtml = reportDirPath.resolve("allure-maven.html");
+        String htmlFile = Files.exists(indexHtml) ? "index.html" : 
+                          Files.exists(mavenHtml) ? "allure-maven.html" : "index.html";
+        
+        String reportLink = startHttpServer(reportDirPath, htmlFile);
+        System.out.println("Report link generated: " + reportLink);
+        
+        System.out.println("Building email body...");
+        message.setContent(buildEmailBody(reportLink, reportPath), "text/html; charset=utf-8");
+        
+        System.out.println("Sending email...");
+        Transport.send(message);
+        System.out.println("Email sent successfully!");
+    }
+
+    /**
+     * Sends a notification email without report link when report generation fails.
+     */
+    private static void sendNotificationEmailWithoutReport() throws MessagingException, IOException {
+        System.out.println("=== Preparing to send notification email (without report) ===");
+        
+        // Configure SMTP properties (same as sendEmailWithLink)
+        Properties props = new Properties();
+        String port = FrameworkConfig.emailSmtpPort();
+        String smtpHost = FrameworkConfig.emailSmtpHost();
+        
+        System.out.println("Configuring SMTP connection to " + smtpHost + ":" + port);
+        
+        props.put("mail.smtp.host", smtpHost);
+        props.put("mail.smtp.port", port);
+        props.put("mail.smtp.auth", "true");
+        props.put("mail.smtp.ssl.trust", smtpHost);
+        props.put("mail.smtp.connectiontimeout", "10000");
+        props.put("mail.smtp.timeout", "10000");
         
         if ("465".equals(port)) {
             props.put("mail.smtp.socketFactory.port", "465");
@@ -247,6 +463,7 @@ public final class EmailService {
             props.put("mail.smtp.ssl.enable", "true");
         } else {
             props.put("mail.smtp.starttls.enable", "true");
+            props.put("mail.smtp.starttls.required", "true");
         }
 
         Session session = Session.getInstance(props, new Authenticator() {
@@ -263,36 +480,65 @@ public final class EmailService {
         message.setFrom(new InternetAddress(FrameworkConfig.emailFrom()));
         
         // Set recipients
-        String[] recipients = FrameworkConfig.emailRecipients().split(",");
+        String recipientsStr = FrameworkConfig.emailRecipients();
+        String[] recipients = recipientsStr.split(",");
         InternetAddress[] addresses = new InternetAddress[recipients.length];
         for (int i = 0; i < recipients.length; i++) {
             addresses[i] = new InternetAddress(recipients[i].trim());
         }
         message.setRecipients(Message.RecipientType.TO, addresses);
         
-        // Add timestamp to subject to ensure each email is new (not threaded)
         String timestamp = java.time.LocalDateTime.now().format(
             java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
-        String subject = FrameworkConfig.emailSubject() + " - " + timestamp;
+        String subject = FrameworkConfig.emailSubject() + " - " + timestamp + " [Report Generation Failed]";
         message.setSubject(subject);
         
-        // Set unique Message-ID to prevent threading
         message.setHeader("Message-ID", "<" + System.currentTimeMillis() + "@falcon-automation>");
         message.setHeader("X-Mailer", "Falcon Automation Framework");
 
-        // Start HTTP server to serve the report
-        Path reportDirPath = Paths.get(reportPath).toAbsolutePath();
+        // Build simple email body
+        String environment = FrameworkConfig.environment();
+        String resultsDir = System.getProperty("allure.results.directory", "target/allure-results");
+        Path resultsPath = Paths.get(resultsDir);
+        boolean resultsExist = Files.exists(resultsPath) && Files.isDirectory(resultsPath);
         
-        // Check for index.html (interactive report) or allure-maven.html (Maven site report)
-        Path indexHtml = reportDirPath.resolve("index.html");
-        Path mavenHtml = reportDirPath.resolve("allure-maven.html");
-        String htmlFile = Files.exists(indexHtml) ? "index.html" : 
-                          Files.exists(mavenHtml) ? "allure-maven.html" : "index.html";
+        StringBuilder body = new StringBuilder();
+        body.append("<html><body>");
+        body.append("<h2>Test Execution Completed</h2>");
+        body.append("<p><strong>Environment:</strong> ").append(environment).append("</p>");
+        body.append("<p><strong>Execution Time:</strong> ").append(timestamp).append("</p>");
         
-        String reportLink = startHttpServer(reportDirPath, htmlFile);
+        body.append("<div style=\"background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 15px 0; border-radius: 4px;\">");
+        body.append("<p style=\"margin: 0 0 10px 0; color: #856404; font-size: 14px; font-weight: bold;\">");
+        body.append("⚠️ Allure Report Generation Failed</p>");
+        body.append("<p style=\"margin: 0 0 15px 0; color: #333; font-size: 13px;\">");
+        body.append("The test execution completed, but the Allure report could not be generated. ");
+        body.append("Please check the test output logs for details.</p>");
         
-        message.setContent(buildEmailBody(reportLink, reportPath), "text/html; charset=utf-8");
+        if (resultsExist) {
+            body.append("<p style=\"margin: 0; color: #666; font-size: 12px;\">");
+            body.append("<strong>Allure Results Location:</strong> <code style=\"background: #f5f5f5; padding: 2px 6px;\">");
+            body.append(resultsPath.toAbsolutePath()).append("</code></p>");
+            body.append("<p style=\"margin: 10px 0 0 0; color: #666; font-size: 12px;\">");
+            body.append("You can generate the report manually using:<br>");
+            body.append("<code style=\"background: white; padding: 6px 10px; display: inline-block; margin-top: 5px; font-family: monospace; border: 1px solid #ddd;\">");
+            body.append("allure generate ").append(resultsDir).append(" --clean && allure open</code>");
+            body.append("</p>");
+        } else {
+            body.append("<p style=\"margin: 0; color: #d32f2f; font-size: 12px;\">");
+            body.append("<strong>Warning:</strong> Allure results directory not found at: ").append(resultsDir);
+            body.append("</p>");
+        }
+        
+        body.append("</div>");
+        body.append("<p>Best regards,<br>Falcon Automation Framework</p>");
+        body.append("</body></html>");
+        
+        message.setContent(body.toString(), "text/html; charset=utf-8");
+        
+        System.out.println("Sending notification email...");
         Transport.send(message);
+        System.out.println("Notification email sent successfully!");
     }
 
     /**

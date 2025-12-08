@@ -74,10 +74,12 @@ public class AiImageGenerator extends BasePage {
     public static final By GENERATE_BUTTON = By.xpath("//button[normalize-space()='Generate' or contains(@class,'generate')]");
     public static final By GENERATED_IMAGES = By.xpath("//div[contains(@class,'grid') and contains(@class,'grid-cols')]//img[contains(@alt,'Generated design')]");
     public static final By GENERATING_LOADER = By.xpath("//*[contains(text(),'Generating') or contains(text(),'Processing')]");
+    public static final By RIGHT_PANEL_SPINNER = By.xpath("//*[name()='svg' and contains(@class,'animate-spin')]");
     public static final By VIEW_HISTORY_CTA = By.xpath("//button[@class='gap-2 whitespace-nowrap rounded-[18px] transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 inline-flex items-center justify-center border border-gray-200 dark:border-gray-700 bg-background text-sm font-medium shadow-sm hover:bg-accent hover:text-accent-foreground dark:hover:bg-neutral-700 h-9 px-4 py-2 w-full']");
     public static final By GENERATED_IMAGE_UI = By.xpath("//div[@class='relative flex h-full w-full items-center justify-center']");
     public static final By RIGHT_PANEL_PLACEHOLDER = By.xpath("//h2[normalize-space()='Your creations will appear here']");
     public static final By IMAGE_DESC_REQUI_MSG = By.xpath("//p[normalize-space()='Image description is required']");
+    public static final By IMAGE_DWNLD_CTA = By.xpath("(//*[name()='svg'][@class='lucide lucide-download w-4 h-4 text-zinc-900 dark:text-zinc-100'])[1]");
     /**
      * Navigates to the AI Image Generator page with optional model parameter.
      * Automatically handles stage vs prod environments based on configuration.
