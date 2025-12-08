@@ -52,8 +52,6 @@ jobs:
       - name: Run Tests
         env:
           HEADLESS: true
-          CI: true
-          GITHUB_ACTIONS: true
         run: |
           ENV="${{ github.event.inputs.environment }}"
           MODULE="${{ github.event.inputs.module }}"
