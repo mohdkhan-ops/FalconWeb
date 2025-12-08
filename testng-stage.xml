@@ -3,7 +3,7 @@
     <listeners>
         <listener class-name="com.liftofftech.falcon.core.reporting.AllureReportListener"/>
     </listeners>
-    <test name="Image Module Tests - Stage" parallel="classes" thread-count="2">
+    <test name="Image Module Tests - Stage" parallel="classes" thread-count="3">
         <classes>
             <class name="com.liftofftech.falcon.tests.image.ImageGeneratorUITests"/>
             <class name="com.liftofftech.falcon.tests.image.ImageGeneratorFunctionalityTests"/>
