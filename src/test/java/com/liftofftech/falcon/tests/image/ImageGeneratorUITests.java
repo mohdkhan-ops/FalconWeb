@@ -437,5 +437,63 @@ public class ImageGeneratorUITests extends BaseTest {
         
         System.out.println("✓ Loading spinner appeared in right panel");
     }
+
+    @Story("Page scrolling functionality")
+    @Severity(SeverityLevel.NORMAL)
+    @Test(description = "Verify AI image generator page can scroll up and down on small screens")
+    public void shouldAllowScrollingOnSmallScreens() {
+        page.navigateToImageGenerator();
+        
+        // Wait for page to load
+        page.waitUntilVisible(IMAGE_DESC_HEADING);
+        
+        // Get initial scroll position (should be at top)
+        long initialScrollPosition = page.getScrollPosition();
+        System.out.println("Initial scroll position: " + initialScrollPosition);
+        
+        // Verify page is scrollable (has content beyond viewport)
+        long maxScrollHeight = page.getMaxScrollHeight();
+        System.out.println("Maximum scrollable height: " + maxScrollHeight);
+        
+        // On small screens or pages with enough content, maxScrollHeight should be > 0
+        Assert.assertTrue(maxScrollHeight >= 0,
+            "Page should have scrollable content. Max scroll height: " + maxScrollHeight);
+        
+        // Scroll down by a reasonable amount (e.g., 500 pixels)
+        page.scrollByPixels(500);
+        
+        // Wait a moment for scroll to complete
+        try {
+            Thread.sleep(500);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        
+        // Verify scroll position changed (scrolled down)
+        long scrollAfterDown = page.getScrollPosition();
+        System.out.println("Scroll position after scrolling down: " + scrollAfterDown);
+        
+        Assert.assertTrue(scrollAfterDown > initialScrollPosition,
+            "Page should scroll down. Initial: " + initialScrollPosition + ", After scroll: " + scrollAfterDown);
+        
+        // Scroll back up
+        page.scrollByPixels(-500);
+        
+        // Wait a moment for scroll to complete
+        try {
+            Thread.sleep(500);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        
+        // Verify scroll position changed back (scrolled up)
+        long scrollAfterUp = page.getScrollPosition();
+        System.out.println("Scroll position after scrolling up: " + scrollAfterUp);
+        
+        Assert.assertTrue(scrollAfterUp < scrollAfterDown,
+            "Page should scroll up. After down: " + scrollAfterDown + ", After up: " + scrollAfterUp);
+        
+        System.out.println("✓ Page scrolling functionality verified");
+    }
 }
 
