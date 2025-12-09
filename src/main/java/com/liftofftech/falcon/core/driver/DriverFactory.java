@@ -70,12 +70,12 @@ public final class DriverFactory {
                 mobileEmulation.put("deviceName", deviceName);
             } else {
                 // Option 2: Use custom device metrics and user agent
-                Map<String, Object> deviceMetrics = new HashMap<>();
-                deviceMetrics.put("width", FrameworkConfig.mobileWidth());
-                deviceMetrics.put("height", FrameworkConfig.mobileHeight());
-                deviceMetrics.put("pixelRatio", FrameworkConfig.mobilePixelRatio());
-                mobileEmulation.put("deviceMetrics", deviceMetrics);
-                mobileEmulation.put("userAgent", FrameworkConfig.mobileUserAgent());
+            Map<String, Object> deviceMetrics = new HashMap<>();
+            deviceMetrics.put("width", FrameworkConfig.mobileWidth());
+            deviceMetrics.put("height", FrameworkConfig.mobileHeight());
+            deviceMetrics.put("pixelRatio", FrameworkConfig.mobilePixelRatio());
+            mobileEmulation.put("deviceMetrics", deviceMetrics);
+            mobileEmulation.put("userAgent", FrameworkConfig.mobileUserAgent());
             }
 
             options.setExperimentalOption("mobileEmulation", mobileEmulation);

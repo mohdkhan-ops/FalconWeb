@@ -34,22 +34,12 @@ public final class EmailService {
      */
     public static void sendAllureReport() {
         if (!FrameworkConfig.emailEnabled()) {
-            System.out.println("Email notifications are disabled. Skipping email send.");
             return;
         }
         
-        System.out.println("=== Email Service: Starting email report generation ===");
-        System.out.println("Email enabled: " + FrameworkConfig.emailEnabled());
-        System.out.println("SMTP Host: " + FrameworkConfig.emailSmtpHost());
-        System.out.println("SMTP Port: " + FrameworkConfig.emailSmtpPort());
-        System.out.println("Email From: " + FrameworkConfig.emailFrom());
-        System.out.println("Email Recipients: " + FrameworkConfig.emailRecipients());
-        
-        // Validate email configuration before proceeding
         String validationError = validateEmailConfiguration();
         if (validationError != null) {
-            System.err.println("ERROR: Email configuration validation failed: " + validationError);
-            System.err.println("Email will not be sent. Please fix the configuration and try again.");
+            System.err.println("Email configuration error: " + validationError);
             return;
         }
         
@@ -58,58 +48,21 @@ public final class EmailService {
             boolean reportGenerated = false;
             
             if (reportPath != null) {
-                // Verify report path exists
                 Path reportPathObj = Paths.get(reportPath);
                 if (Files.exists(reportPathObj)) {
-                    System.out.println("Report generated successfully at: " + reportPath);
-                    sendEmailWithLink(reportPath);
-                    System.out.println("SUCCESS: Email sent to " + FrameworkConfig.emailRecipients());
+            sendEmailWithLink(reportPath);
+                    System.out.println("Email sent successfully to " + FrameworkConfig.emailRecipients());
                     reportGenerated = true;
-                } else {
-                    System.err.println("WARNING: Generated report path does not exist: " + reportPath);
                 }
             }
             
-            // If report generation failed, send a notification email anyway
             if (!reportGenerated) {
-                System.err.println("WARNING: Failed to generate Allure report. Sending notification email without report link.");
-                System.err.println("Please check if Allure results exist in target/allure-results");
                 sendNotificationEmailWithoutReport();
-                System.out.println("SUCCESS: Notification email sent to " + FrameworkConfig.emailRecipients());
+                System.out.println("Notification email sent to " + FrameworkConfig.emailRecipients());
             }
-        } catch (java.io.IOException e) {
-            System.err.println("ERROR: Failed to send email (IOException): " + e.getMessage());
-            System.err.println("This might be related to HTTP server startup or file access issues.");
-            e.printStackTrace();
-        } catch (javax.mail.AuthenticationFailedException e) {
-            System.err.println("ERROR: Email authentication failed!");
-            System.err.println("Message: " + e.getMessage());
-            System.err.println("\nTroubleshooting:");
-            System.err.println("1. Verify email.username and email.password are correct in config file");
-            System.err.println("2. For Gmail, ensure you're using an App Password (not regular password)");
-            System.err.println("   - Go to: https://myaccount.google.com/apppasswords");
-            System.err.println("   - Generate an app password for 'Mail'");
-            System.err.println("3. Check if 2FA is enabled on your Gmail account");
-            System.err.println("4. Verify SMTP settings: " + FrameworkConfig.emailSmtpHost() + ":" + FrameworkConfig.emailSmtpPort());
-            e.printStackTrace();
-        } catch (MessagingException e) {
-            System.err.println("ERROR: Failed to send email (MessagingException): " + e.getMessage());
-            System.err.println("Cause: " + (e.getCause() != null ? e.getCause().getMessage() : "Unknown"));
-            e.printStackTrace();
-            System.err.println("\nTroubleshooting:");
-            System.err.println("1. Check if email.enabled=true in config");
-            System.err.println("2. Verify email.username and email.password are correct");
-            System.err.println("3. For Gmail, ensure you're using an App Password (not regular password)");
-            System.err.println("4. Check SMTP settings: " + FrameworkConfig.emailSmtpHost() + ":" + FrameworkConfig.emailSmtpPort());
-            System.err.println("5. Check network connectivity and firewall settings");
         } catch (Exception e) {
-            System.err.println("ERROR: Failed to send email: " + e.getMessage());
-            System.err.println("Exception type: " + e.getClass().getName());
+            System.err.println("Failed to send email: " + e.getMessage());
             e.printStackTrace();
-            System.err.println("\nTroubleshooting:");
-            System.err.println("1. Check if email configuration is correct in property.stage.config");
-            System.err.println("2. Verify all required email properties are set");
-            System.err.println("3. Check console output above for more details");
         }
     }
     
@@ -180,24 +133,17 @@ public final class EmailService {
 
             String projectDir = System.getProperty("user.dir");
             
-            // First, try to generate interactive report using Allure CLI
             String allureCmd = findAllureCommand(projectDir);
             if (allureCmd != null) {
-                System.out.println("Found Allure CLI: " + allureCmd);
-                System.out.println("Generating interactive Allure report...");
-                
                 if (generateInteractiveReport(allureCmd, resultsDir, reportDir, projectDir)) {
                     Path reportPath = Paths.get(reportDir);
                     Path indexHtml = reportPath.resolve("index.html");
                     if (Files.exists(indexHtml)) {
-                        System.out.println("Interactive Allure report generated successfully!");
                         return reportDir;
                     }
                 }
             }
             
-            // Fallback: Use Maven plugin to generate Maven site page
-            System.out.println("Allure CLI not found or failed. Using Maven plugin to generate site page...");
             return generateMavenSiteReport(resultsDir, projectDir);
             
         } catch (Exception e) {
@@ -287,14 +233,7 @@ public final class EmailService {
             processBuilder.redirectErrorStream(true);
             Process process = processBuilder.start();
             
-            // Read output
-            java.io.BufferedReader reader = new java.io.BufferedReader(
-                new java.io.InputStreamReader(process.getInputStream()));
-            String line;
-            while ((line = reader.readLine()) != null) {
-                System.out.println("Allure CLI output: " + line);
-            }
-            
+            process.getInputStream().close();
             int exitCode = process.waitFor();
             return exitCode == 0;
         } catch (Exception e) {
@@ -314,19 +253,11 @@ public final class EmailService {
             processBuilder.directory(new java.io.File(projectDir));
             processBuilder.redirectErrorStream(true);
             Process process = processBuilder.start();
-            
-            java.io.BufferedReader reader = new java.io.BufferedReader(
-                new java.io.InputStreamReader(process.getInputStream()));
-            String line;
-            while ((line = reader.readLine()) != null) {
-                System.out.println("Maven Allure output: " + line);
-            }
-            
+            process.getInputStream().close();
             int exitCode = process.waitFor();
             if (exitCode == 0) {
                 String mavenReportDir = "target/site/allure-maven-plugin";
                 if (Files.exists(Paths.get(mavenReportDir))) {
-                    System.out.println("Maven site page generated (limited functionality).");
                     return mavenReportDir;
                 }
             }
@@ -342,51 +273,21 @@ public final class EmailService {
      * Sends email with Allure report link.
      */
     private static void sendEmailWithLink(String reportPath) throws MessagingException, IOException {
-        System.out.println("=== Preparing to send email ===");
-        
-        // Configure SMTP properties
-        Properties props = new Properties();
-        String port = FrameworkConfig.emailSmtpPort();
-        String smtpHost = FrameworkConfig.emailSmtpHost();
-        
-        System.out.println("Configuring SMTP connection to " + smtpHost + ":" + port);
-        
-        props.put("mail.smtp.host", smtpHost);
-        props.put("mail.smtp.port", port);
-        props.put("mail.smtp.auth", "true");
-        props.put("mail.smtp.ssl.trust", smtpHost);
-        
-        // Add timeout properties to prevent hanging
-        props.put("mail.smtp.connectiontimeout", "10000"); // 10 seconds
-        props.put("mail.smtp.timeout", "10000"); // 10 seconds
-        
-        if ("465".equals(port)) {
-            System.out.println("Using SSL socket factory for port 465");
-            props.put("mail.smtp.socketFactory.port", "465");
-            props.put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory");
-            props.put("mail.smtp.ssl.enable", "true");
-        } else {
-            System.out.println("Using STARTTLS for port " + port);
-            props.put("mail.smtp.starttls.enable", "true");
-            props.put("mail.smtp.starttls.required", "true");
-        }
-
-        System.out.println("Creating email session...");
+        Properties props = createSmtpProperties();
         Session session = Session.getInstance(props, new Authenticator() {
             @Override
             protected PasswordAuthentication getPasswordAuthentication() {
-                String username = FrameworkConfig.emailUsername();
-                String password = FrameworkConfig.emailPassword();
-                System.out.println("Authenticating with username: " + username);
-                return new PasswordAuthentication(username, password);
+                return new PasswordAuthentication(
+                    FrameworkConfig.emailUsername(),
+                    FrameworkConfig.emailPassword()
+                );
             }
         });
 
-        System.out.println("Creating email message...");
         Message message = new MimeMessage(session);
         
         try {
-            message.setFrom(new InternetAddress(FrameworkConfig.emailFrom()));
+        message.setFrom(new InternetAddress(FrameworkConfig.emailFrom()));
         } catch (javax.mail.internet.AddressException e) {
             throw new MessagingException("Invalid 'from' email address: " + FrameworkConfig.emailFrom(), e);
         }
@@ -397,75 +298,35 @@ public final class EmailService {
         InternetAddress[] addresses = new InternetAddress[recipients.length];
         for (int i = 0; i < recipients.length; i++) {
             try {
-                addresses[i] = new InternetAddress(recipients[i].trim());
+            addresses[i] = new InternetAddress(recipients[i].trim());
             } catch (javax.mail.internet.AddressException e) {
                 throw new MessagingException("Invalid recipient email address: " + recipients[i], e);
             }
         }
         message.setRecipients(Message.RecipientType.TO, addresses);
-        System.out.println("Email recipients set: " + recipientsStr);
         
-        // Add timestamp to subject to ensure each email is new (not threaded)
         String timestamp = java.time.LocalDateTime.now().format(
             java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
-        String subject = FrameworkConfig.emailSubject() + " - " + timestamp;
-        message.setSubject(subject);
-        System.out.println("Email subject: " + subject);
-        
-        // Set unique Message-ID to prevent threading
+        message.setSubject(FrameworkConfig.emailSubject() + " - " + timestamp);
         message.setHeader("Message-ID", "<" + System.currentTimeMillis() + "@falcon-automation>");
         message.setHeader("X-Mailer", "Falcon Automation Framework");
 
-        // Start HTTP server to serve the report
-        System.out.println("Starting HTTP server for report...");
         Path reportDirPath = Paths.get(reportPath).toAbsolutePath();
-        
-        // Check for index.html (interactive report) or allure-maven.html (Maven site report)
         Path indexHtml = reportDirPath.resolve("index.html");
         Path mavenHtml = reportDirPath.resolve("allure-maven.html");
         String htmlFile = Files.exists(indexHtml) ? "index.html" : 
                           Files.exists(mavenHtml) ? "allure-maven.html" : "index.html";
         
         String reportLink = startHttpServer(reportDirPath, htmlFile);
-        System.out.println("Report link generated: " + reportLink);
-        
-        System.out.println("Building email body...");
         message.setContent(buildEmailBody(reportLink, reportPath), "text/html; charset=utf-8");
-        
-        System.out.println("Sending email...");
         Transport.send(message);
-        System.out.println("Email sent successfully!");
     }
 
     /**
      * Sends a notification email without report link when report generation fails.
      */
     private static void sendNotificationEmailWithoutReport() throws MessagingException, IOException {
-        System.out.println("=== Preparing to send notification email (without report) ===");
-        
-        // Configure SMTP properties (same as sendEmailWithLink)
-        Properties props = new Properties();
-        String port = FrameworkConfig.emailSmtpPort();
-        String smtpHost = FrameworkConfig.emailSmtpHost();
-        
-        System.out.println("Configuring SMTP connection to " + smtpHost + ":" + port);
-        
-        props.put("mail.smtp.host", smtpHost);
-        props.put("mail.smtp.port", port);
-        props.put("mail.smtp.auth", "true");
-        props.put("mail.smtp.ssl.trust", smtpHost);
-        props.put("mail.smtp.connectiontimeout", "10000");
-        props.put("mail.smtp.timeout", "10000");
-        
-        if ("465".equals(port)) {
-            props.put("mail.smtp.socketFactory.port", "465");
-            props.put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory");
-            props.put("mail.smtp.ssl.enable", "true");
-        } else {
-            props.put("mail.smtp.starttls.enable", "true");
-            props.put("mail.smtp.starttls.required", "true");
-        }
-
+        Properties props = createSmtpProperties();
         Session session = Session.getInstance(props, new Authenticator() {
             @Override
             protected PasswordAuthentication getPasswordAuthentication() {
@@ -479,7 +340,6 @@ public final class EmailService {
         Message message = new MimeMessage(session);
         message.setFrom(new InternetAddress(FrameworkConfig.emailFrom()));
         
-        // Set recipients
         String recipientsStr = FrameworkConfig.emailRecipients();
         String[] recipients = recipientsStr.split(",");
         InternetAddress[] addresses = new InternetAddress[recipients.length];
@@ -490,9 +350,7 @@ public final class EmailService {
         
         String timestamp = java.time.LocalDateTime.now().format(
             java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
-        String subject = FrameworkConfig.emailSubject() + " - " + timestamp + " [Report Generation Failed]";
-        message.setSubject(subject);
-        
+        message.setSubject(FrameworkConfig.emailSubject() + " - " + timestamp + " [Report Generation Failed]");
         message.setHeader("Message-ID", "<" + System.currentTimeMillis() + "@falcon-automation>");
         message.setHeader("X-Mailer", "Falcon Automation Framework");
 
@@ -535,12 +393,36 @@ public final class EmailService {
         body.append("</body></html>");
         
         message.setContent(body.toString(), "text/html; charset=utf-8");
-        
-        System.out.println("Sending notification email...");
         Transport.send(message);
-        System.out.println("Notification email sent successfully!");
     }
-
+    
+    /**
+     * Creates SMTP properties for email configuration.
+     */
+    private static Properties createSmtpProperties() {
+        Properties props = new Properties();
+        String port = FrameworkConfig.emailSmtpPort();
+        String smtpHost = FrameworkConfig.emailSmtpHost();
+        
+        props.put("mail.smtp.host", smtpHost);
+        props.put("mail.smtp.port", port);
+        props.put("mail.smtp.auth", "true");
+        props.put("mail.smtp.ssl.trust", smtpHost);
+        props.put("mail.smtp.connectiontimeout", "10000");
+        props.put("mail.smtp.timeout", "10000");
+        
+        if ("465".equals(port)) {
+            props.put("mail.smtp.socketFactory.port", "465");
+            props.put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory");
+            props.put("mail.smtp.ssl.enable", "true");
+        } else {
+            props.put("mail.smtp.starttls.enable", "true");
+            props.put("mail.smtp.starttls.required", "true");
+        }
+        
+        return props;
+    }
+    
     /**
      * Starts a simple HTTP server to serve the Allure report and returns the URL.
      */
@@ -591,18 +473,7 @@ public final class EmailService {
                 }
             }));
             
-            String reportUrl = "http://localhost:" + serverPort + "/" + htmlFile;
-            
-            // Print instructions
-            System.out.println("HTTP server started successfully on port " + serverPort + "!");
-            System.out.println("Report accessible at: " + reportUrl);
-            System.out.println("");
-            System.out.println("NOTE: If the server stops, you can manually start it using:");
-            System.out.println("  cd " + reportDir.toAbsolutePath());
-            System.out.println("  python3 -m http.server " + serverPort);
-            System.out.println("  # Then access: " + reportUrl);
-            
-            return reportUrl;
+            return "http://localhost:" + serverPort + "/" + htmlFile;
         } catch (Exception e) {
             System.err.println("WARNING: Failed to start HTTP server: " + e.getMessage());
             // Fallback to file:// URL

@@ -46,10 +46,10 @@ public abstract class BaseTest {
     @AfterMethod(alwaysRun = true)
     public void tearDown(ITestResult result) {
         try {
-            if (!result.isSuccess() && FrameworkConfig.screenshotOnFailure() && DriverManager.hasDriver()) {
+        if (!result.isSuccess() && FrameworkConfig.screenshotOnFailure() && DriverManager.hasDriver()) {
                 try {
-                    AllureAttachments.attachScreenshot();
-                    AllureAttachments.attachPageSource();
+            AllureAttachments.attachScreenshot();
+            AllureAttachments.attachPageSource();
                 } catch (Exception e) {
                     // Ignore screenshot errors during parallel execution
                     System.err.println("Failed to attach screenshot: " + e.getMessage());
@@ -58,7 +58,7 @@ public abstract class BaseTest {
         } finally {
             // Always cleanup driver, even if screenshot fails
             try {
-                DriverManager.unload();
+         DriverManager.unload();
             } catch (Exception e) {
                 // Ignore cleanup errors - driver may already be closed
                 System.err.println("Driver cleanup warning: " + e.getMessage());
