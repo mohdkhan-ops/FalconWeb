@@ -95,6 +95,45 @@ public abstract class BasePage {
             "arguments[0].dispatchEvent(changeEvent);",
             element, value);
     }
+
+    /**
+     * Pastes text into an element using keyboard shortcuts.
+     * Uses CMD+V on Mac, CTRL+V on other platforms.
+     * 
+     * @param locator the element locator
+     * @param textToPaste the text to paste
+     */
+    public void pasteText(By locator, String textToPaste) {
+        WebElement element = waitUntilVisible(locator);
+        element.click(); // Focus the element
+        
+        // Set text to clipboard using JavaScript
+        ((JavascriptExecutor) driver).executeScript(
+            "navigator.clipboard.writeText(arguments[0]).catch(err => console.error('Clipboard write failed:', err));",
+            textToPaste);
+        
+        // Wait a moment for clipboard to be set
+        try {
+            Thread.sleep(300);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        
+        // Use keyboard shortcut to paste
+        String os = System.getProperty("os.name").toLowerCase();
+        if (os.contains("mac")) {
+            element.sendKeys(Keys.chord(Keys.COMMAND, "v"));
+        } else {
+            element.sendKeys(Keys.chord(Keys.CONTROL, "v"));
+        }
+        
+        // Wait for paste to complete
+        try {
+            Thread.sleep(300);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
     
 
     /**
@@ -166,6 +205,80 @@ public abstract class BasePage {
      */
     public void scrollByPixels(int pixels) {
         ((JavascriptExecutor) driver).executeScript("window.scrollBy(0, " + pixels + ");");
+    }
+
+    /**
+     * Gets the current vertical scroll position.
+     * 
+     * @return the current scroll position in pixels
+     */
+    public long getScrollPosition() {
+        return (Long) ((JavascriptExecutor) driver).executeScript("return window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;");
+    }
+
+    /**
+     * Gets the maximum scrollable height of the page.
+     * 
+     * @return the maximum scroll position in pixels
+     */
+    public long getMaxScrollHeight() {
+        return (Long) ((JavascriptExecutor) driver).executeScript(
+            "return Math.max(document.body.scrollHeight, document.body.offsetHeight, " +
+            "document.documentElement.clientHeight, document.documentElement.scrollHeight, " +
+            "document.documentElement.offsetHeight) - window.innerHeight;");
+    }
+
+    /**
+     * Gets the scroll position of a specific element (e.g., textarea).
+     * 
+     * @param locator the element locator
+     * @return the current scroll position of the element
+     */
+    public long getElementScrollPosition(By locator) {
+        WebElement element = waitUntilPresent(locator);
+        return (Long) ((JavascriptExecutor) driver).executeScript(
+            "return arguments[0].scrollTop;", element);
+    }
+
+    /**
+     * Gets the maximum scrollable height of a specific element (e.g., textarea).
+     * 
+     * @param locator the element locator
+     * @return the maximum scroll position of the element
+     */
+    public long getElementMaxScrollHeight(By locator) {
+        WebElement element = waitUntilPresent(locator);
+        return (Long) ((JavascriptExecutor) driver).executeScript(
+            "return arguments[0].scrollHeight - arguments[0].clientHeight;", element);
+    }
+
+    /**
+     * Scrolls a specific element (e.g., textarea) by specified pixels.
+     * 
+     * @param locator the element locator
+     * @param pixels the number of pixels to scroll (positive = down, negative = up)
+     */
+    public void scrollElementByPixels(By locator, int pixels) {
+        WebElement element = waitUntilPresent(locator);
+        ((JavascriptExecutor) driver).executeScript(
+            "arguments[0].scrollTop += arguments[1];", element, pixels);
+        try {
+            Thread.sleep(200);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    /**
+     * Checks if an element (e.g., textarea) is scrollable.
+     * 
+     * @param locator the element locator
+     * @return true if the element has scrollable content
+     */
+    public boolean isElementScrollable(By locator) {
+        WebElement element = waitUntilPresent(locator);
+        return (Boolean) ((JavascriptExecutor) driver).executeScript(
+            "return arguments[0].scrollHeight > arguments[0].clientHeight;", element);
     }
 
     /**

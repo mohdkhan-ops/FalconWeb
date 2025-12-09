@@ -32,9 +32,10 @@ public class AiImageGenerator extends BasePage {
     public static final By CLOSE_DIALOG_BUTTON = By.xpath("//div[@role='dialog']//button[normalize-space()='Close']");
     
     // Legacy locators (keeping for backward compatibility)
-    public static final By UPLOAD_IMAGE_TO_GENERATE_PROMPT = By.xpath("//uc-file-uploader-regular[@ctx-name='image-to-prompt-dialog']//span[contains(text(),'Upload files')]");
-    public static final By FILE_UPLOAD = By.xpath("//uc-file-uploader-regular[@ctx-name='image-to-prompt-dialog']//div[@class='uc-txt'][normalize-space()='From device']");
-    public static final By FILE_INPUT = By.cssSelector("input[type='file']");
+   
+    public static final By UPLOAD_IMAGE_TO_GENERATE_PROMPT_BOX = By.xpath("//uc-file-uploader-regular[@ctx-name='image-to-prompt-dialog']//span[contains(text(),'Upload files')]");
+    public static final By FILE_UPLOAD_FROM_DEVICE = By.xpath("//uc-file-uploader-regular[@ctx-name='image-to-prompt-dialog']//div[@class='uc-txt'][normalize-space()='From device']");
+    public static final By FILE_DIALOG_BOX = By.xpath("//uc-upload-list[@activity='upload-list' and @active]");
     public static final By FILE_UPLOAD_DONE_CTA = By.xpath("(//button[contains(@class,'uc-done-btn')])[3]");
     public static final By IMAGE_DESC_REQUIRED_VALIDATION_MSG = By.xpath("//p[@class='text-sm text-red-500']");
     public static final By CHAR_COUNT = By.xpath("//p[normalize-space()='0/3500']");
