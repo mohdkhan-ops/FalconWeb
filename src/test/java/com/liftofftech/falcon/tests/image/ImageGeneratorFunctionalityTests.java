@@ -9,6 +9,9 @@ import com.liftofftech.falcon.core.base.BaseTest;
 import com.liftofftech.falcon.pages.image.AiImageGenerator;
 import com.liftofftech.falcon.pages.auth.SignInPage;
 
+import org.openqa.selenium.support.ui.ExpectedConditions;
+import org.openqa.selenium.support.ui.WebDriverWait;
+
 import io.qameta.allure.Epic;
 import io.qameta.allure.Feature;
 import io.qameta.allure.Severity;
@@ -96,10 +99,7 @@ public class ImageGeneratorFunctionalityTests extends BaseTest {
         page.typeUsingJS(DESC_PROMPT, finalInput);
         
         // Wait for React state to update - use explicit wait instead of sleep
-        org.openqa.selenium.support.ui.WebDriverWait wait = 
-            new org.openqa.selenium.support.ui.WebDriverWait(
-                com.liftofftech.falcon.core.driver.DriverManager.getDriver(),
-                java.time.Duration.ofSeconds(5));
+        WebDriverWait wait = page.createCustomWait(5);
         
         try {
             wait.until(d -> {
@@ -153,18 +153,15 @@ public class ImageGeneratorFunctionalityTests extends BaseTest {
         page.click(GEN_PROMPT_FROM_IMAGE_CTA);
 
         // Wait for dialog to appear - use longer timeout for CI environments
-        org.openqa.selenium.support.ui.WebDriverWait customWait = 
-            new org.openqa.selenium.support.ui.WebDriverWait(
-                com.liftofftech.falcon.core.driver.DriverManager.getDriver(),
-                java.time.Duration.ofSeconds(45));
+        WebDriverWait customWait = page.createCustomWait(45);
         
         // First wait for dialog to be present
-        customWait.until(org.openqa.selenium.support.ui.ExpectedConditions.presenceOfElementLocated(
+        customWait.until(ExpectedConditions.presenceOfElementLocated(
             By.xpath("//div[@role='dialog']")));
         
         // Then wait for upload element with extended timeout
         try {
-            customWait.until(org.openqa.selenium.support.ui.ExpectedConditions.visibilityOfElementLocated(
+            customWait.until(ExpectedConditions.visibilityOfElementLocated(
                 UPLOAD_IMAGE_TO_GENERATE_PROMPT));
             page.click(UPLOAD_IMAGE_TO_GENERATE_PROMPT);
         } catch (Exception e) {
@@ -174,7 +171,7 @@ public class ImageGeneratorFunctionalityTests extends BaseTest {
         }
 
         // Wait for From device option and click
-        customWait.until(org.openqa.selenium.support.ui.ExpectedConditions.visibilityOfElementLocated(FILE_UPLOAD));
+        customWait.until(ExpectedConditions.visibilityOfElementLocated(FILE_UPLOAD));
         page.click(FILE_UPLOAD);
         
         // Upload image file
@@ -182,7 +179,7 @@ public class ImageGeneratorFunctionalityTests extends BaseTest {
         page.uploadFile(FILE_INPUT, testImagePath);
 
         // Wait for Done button with extended timeout
-        customWait.until(org.openqa.selenium.support.ui.ExpectedConditions.elementToBeClickable(FILE_UPLOAD_DONE_CTA));
+        customWait.until(ExpectedConditions.elementToBeClickable(FILE_UPLOAD_DONE_CTA));
         page.click(FILE_UPLOAD_DONE_CTA);
         
         // Wait for AI to generate prompt with extended timeout

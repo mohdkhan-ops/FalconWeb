@@ -8,6 +8,11 @@ import com.liftofftech.falcon.core.base.BaseTest;
 import com.liftofftech.falcon.pages.image.AiImageGenerator;
 import com.liftofftech.falcon.pages.auth.SignInPage;
 
+import org.openqa.selenium.WebElement;
+import org.openqa.selenium.support.ui.WebDriverWait;
+
+import java.util.List;
+
 import io.qameta.allure.Epic;
 import io.qameta.allure.Feature;
 import io.qameta.allure.Severity;
@@ -130,7 +135,7 @@ public class ImageGeneratorUITests extends BaseTest {
         page.waitUntilVisible(ASPECT_RATIO_OPTIONS);
         
         // Get all option texts
-        java.util.List<String> actualOptions = page.getAllTexts(ASPECT_RATIO_OPTIONS);
+        List<String> actualOptions = page.getAllTexts(ASPECT_RATIO_OPTIONS);
         
         // Get count of options
         int optionCount = actualOptions.size();
@@ -206,7 +211,7 @@ public class ImageGeneratorUITests extends BaseTest {
         page.waitUntilVisible(RESOLUTION_OPTIONS);
         
         // Get all option texts
-        java.util.List<String> actualOptions = page.getAllTexts(RESOLUTION_OPTIONS);
+        List<String> actualOptions = page.getAllTexts(RESOLUTION_OPTIONS);
         
         // Get count of options
         int optionCount = actualOptions.size();
@@ -281,7 +286,7 @@ public class ImageGeneratorUITests extends BaseTest {
         page.waitUntilVisible(IMAGE_DESC_HEADING);
         
         // Wait for generate button to be present
-        org.openqa.selenium.WebElement generateButton = page.waitUntilPresent(GENERATE_BUTTON);
+        WebElement generateButton = page.waitUntilPresent(GENERATE_BUTTON);
         
         // Check if button is disabled using multiple methods
         // Method 1: Check disabled attribute (HTML disabled attribute)
@@ -383,17 +388,14 @@ public class ImageGeneratorUITests extends BaseTest {
         
         // Step 8: Wait for loading spinner to appear in right panel
         // Wait for spinner/loader to appear in the right panel area
-        org.openqa.selenium.support.ui.WebDriverWait customWait = 
-            new org.openqa.selenium.support.ui.WebDriverWait(
-                com.liftofftech.falcon.core.driver.DriverManager.getDriver(), 
-                java.time.Duration.ofSeconds(10));
+        WebDriverWait customWait = page.createCustomWait(10);
         
         // Wait for spinner to appear - check for GENERATING_LOADER text or spinner elements in right panel
         boolean spinnerAppeared = customWait.until(d -> {
             try {
                 // Check for "Generating" text in right panel area
-                java.util.List<org.openqa.selenium.WebElement> loaders = d.findElements(GENERATING_LOADER);
-                for (org.openqa.selenium.WebElement loader : loaders) {
+                List<WebElement> loaders = d.findElements(GENERATING_LOADER);
+                for (WebElement loader : loaders) {
                     if (loader != null && loader.isDisplayed()) {
                         String text = loader.getText().trim().toLowerCase();
                         int xPosition = loader.getLocation().getX();
@@ -409,8 +411,8 @@ public class ImageGeneratorUITests extends BaseTest {
                 }
                 
                 // Check for spinner elements in right panel
-                java.util.List<org.openqa.selenium.WebElement> spinners = d.findElements(RIGHT_PANEL_SPINNER);
-                for (org.openqa.selenium.WebElement spinner : spinners) {
+                List<WebElement> spinners = d.findElements(RIGHT_PANEL_SPINNER);
+                for (WebElement spinner : spinners) {
                     if (spinner != null && spinner.isDisplayed()) {
                         int xPosition = spinner.getLocation().getX();
                         int windowWidth = d.manage().window().getSize().getWidth();

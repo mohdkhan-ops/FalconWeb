@@ -13,6 +13,7 @@ import org.openqa.selenium.support.PageFactory;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -227,6 +228,17 @@ public abstract class BasePage {
      */
     public WebElement waitUntilPresent(By locator) {
         return wait.until(ExpectedConditions.presenceOfElementLocated(locator));
+    }
+
+    /**
+     * Creates a WebDriverWait instance with a custom timeout.
+     * Useful for operations that need longer or shorter wait times than the default.
+     * 
+     * @param timeoutSeconds the timeout in seconds
+     * @return a WebDriverWait instance with the specified timeout
+     */
+    public WebDriverWait createCustomWait(int timeoutSeconds) {
+        return new WebDriverWait(driver, Duration.ofSeconds(timeoutSeconds));
     }
 
     /**
