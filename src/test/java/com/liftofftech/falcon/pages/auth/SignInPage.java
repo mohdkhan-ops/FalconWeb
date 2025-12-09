@@ -5,6 +5,9 @@ import com.liftofftech.falcon.core.driver.ModuleType;
 import io.qameta.allure.Step;
 import org.openqa.selenium.By;
 
+import org.openqa.selenium.support.ui.ExpectedConditions;
+import org.openqa.selenium.support.ui.WebDriverWait;
+
 /**
  * Page Object for Sign In functionality.
  * Contains locators and actions for the sign in flow.
@@ -83,9 +86,8 @@ public class SignInPage extends BasePage {
      */
     private void waitForDialogToClose() {
         try {
-            org.openqa.selenium.support.ui.WebDriverWait dialogWait = 
-                new org.openqa.selenium.support.ui.WebDriverWait(driver, java.time.Duration.ofSeconds(15));
-            dialogWait.until(org.openqa.selenium.support.ui.ExpectedConditions.invisibilityOfElementLocated(SIGNIN_DIV));
+            WebDriverWait dialogWait = createCustomWait(15);
+            dialogWait.until(ExpectedConditions.invisibilityOfElementLocated(SIGNIN_DIV));
         } catch (Exception e) {
             // Dialog might have already closed
         }

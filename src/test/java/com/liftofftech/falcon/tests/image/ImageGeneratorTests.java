@@ -1,6 +1,6 @@
 package com.liftofftech.falcon.tests.image;
 
-/**
+    /**
  * This class has been split into two separate test classes:
  * 
  * 1. ImageGeneratorUITests - Contains UI-level tests (10 tests)
