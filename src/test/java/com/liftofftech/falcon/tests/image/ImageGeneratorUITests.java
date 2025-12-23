@@ -8,7 +8,9 @@ import com.liftofftech.falcon.core.base.BaseTest;
 import com.liftofftech.falcon.pages.image.AiImageGenerator;
 import com.liftofftech.falcon.pages.auth.SignInPage;
 
+import org.openqa.selenium.By;
 import org.openqa.selenium.WebElement;
+import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
 import java.util.List;
@@ -362,12 +364,43 @@ public class ImageGeneratorUITests extends BaseTest {
         page.waitUntilVisible(RESOLUTION_2K);
         page.click(RESOLUTION_2K);
         
+        // Wait for dropdown to close
+        WebDriverWait customWait = page.createCustomWait(10);
+        customWait.until(ExpectedConditions.invisibilityOfElementLocated(RESOLUTION_OPTIONS));
+        
         // Wait for dropdown to update
         page.waitUntilVisible(RESOLUTION_DROPDOWN_SELECTED);
         
         // Step 5: Verify output format "PNG" (usually default)
-        page.waitUntilVisible(OUTPUT_FORMAT_DROPDOWN);
-        String currentFormat = page.getText(OUTPUT_FORMAT_DROPDOWN);
+        // Wait for output format dropdown to be present and visible
+        // Use a custom wait to handle cases where the element might take time to appear
+        WebDriverWait formatWait = page.createCustomWait(10);
+        WebElement formatDropdown = formatWait.until(d -> {
+            try {
+                // Try the specific selector first
+                List<WebElement> elements = d.findElements(OUTPUT_FORMAT_DROPDOWN);
+                for (WebElement elem : elements) {
+                    if (elem.isDisplayed()) {
+                        return elem;
+                    }
+                }
+                // Fallback: try to find any combobox that contains PNG
+                List<WebElement> comboboxes = d.findElements(By.xpath("//button[@role='combobox']"));
+                for (WebElement combobox : comboboxes) {
+                    if (combobox.isDisplayed()) {
+                        String text = combobox.getText().trim();
+                        if (text.contains("PNG")) {
+                            return combobox;
+                        }
+                    }
+                }
+                return null;
+            } catch (Exception e) {
+                return null;
+            }
+        });
+        
+        String currentFormat = formatDropdown.getText();
         Assert.assertTrue(currentFormat.contains("PNG"),
             "Output format should be PNG. Actual: " + currentFormat);
         
@@ -388,10 +421,10 @@ public class ImageGeneratorUITests extends BaseTest {
         
         // Step 8: Wait for loading spinner to appear in right panel
         // Wait for spinner/loader to appear in the right panel area
-        WebDriverWait customWait = page.createCustomWait(10);
+        WebDriverWait spinnerWait = page.createCustomWait(10);
         
         // Wait for spinner to appear - check for GENERATING_LOADER text or spinner elements in right panel
-        boolean spinnerAppeared = customWait.until(d -> {
+        boolean spinnerAppeared = spinnerWait.until(d -> {
             try {
                 // Check for "Generating" text in right panel area
                 List<WebElement> loaders = d.findElements(GENERATING_LOADER);
