@@ -53,7 +53,8 @@ public class ImageGeneratorFunctionalityTests extends BaseTest {
         
         String testInput = "A beautiful sunset over mountains with vibrant colors";
         page.type(DESC_PROMPT, testInput);
-        String actualText = page.getAttribute(DESC_PROMPT, "value");
+        //String actualText = page.getAttribute(DESC_PROMPT, "value");
+        String actualText = page.getText(DESC_PROMPT);
         
         Assert.assertEquals(actualText, testInput,
             "Prompt description area should accept and display the entered text.");

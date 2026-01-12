@@ -22,7 +22,8 @@ public class AiImageGenerator extends BasePage {
     
     public static final By HEADING_AI_IMAGE = By.xpath("//h1[normalize-space()='AI Image Generator']");
     public static final By IMAGE_DESC_HEADING = By.xpath("//label[@for='prompt']");
-    public static final By DESC_PROMPT = By.xpath("//textarea[@id='prompt']");
+    //public static final By DESC_PROMPT = By.xpath("//textarea[@id='prompt']");
+    public static final By DESC_PROMPT = By.xpath("//div[@id='prompt']");
     public static final By GEN_PROMPT_FROM_IMAGE_CTA = By.xpath("//button[normalize-space()='Generate prompt from image']");
     
     // Dialog locators for "Upload Image to Generate Prompt"
